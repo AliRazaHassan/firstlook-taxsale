@@ -1,5 +1,6 @@
 .shell {
   min-height: 100vh;
+  overflow-x: hidden;
   background:
     radial-gradient(900px 400px at 100% 0%, rgba(125, 255, 163, 0.1), transparent 55%),
     linear-gradient(180deg, #0b110f, #101916 40%, #0c1210);
@@ -35,10 +36,12 @@
 
 .layout {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr) minmax(280px, 340px);
   gap: 1rem;
   padding: 1rem;
   align-items: start;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .sidebar,
@@ -94,29 +97,41 @@
   display: grid;
   gap: 1rem;
   min-width: 0;
+  width: 100%;
+  overflow: visible;
 }
 
 .summary {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.75rem;
+  width: 100%;
+  min-width: 0;
 }
 
 .summary .panel {
-  padding: 0.9rem 1rem;
+  min-width: 0;
+  padding: 1rem 1.1rem;
+  overflow: hidden;
 }
 
 .summary span {
   display: block;
-  font-size: 0.75rem;
-  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .summary strong {
+  display: block;
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .filterRow {
@@ -207,6 +222,12 @@
   line-height: 1.45;
 }
 
+@media (max-width: 1400px) {
+  .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1100px) {
   .layout {
     grid-template-columns: 1fr;
@@ -219,6 +240,16 @@
   }
 
   .summary {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
   }
 }
