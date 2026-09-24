@@ -1,0 +1,263 @@
+:root {
+  --ink: #0c1210;
+  --ink-2: #15201c;
+  --panel: #1a2621;
+  --panel-2: #22302a;
+  --line: rgba(214, 232, 220, 0.12);
+  --fog: #a7b8af;
+  --paper: #eef4ef;
+  --mint: #7dffa3;
+  --mint-dim: #3d9a5c;
+  --warn: #f0b429;
+  --danger: #ff7a6e;
+  --ok: #7dffa3;
+  --font-display: "Syne", system-ui, sans-serif;
+  --font-body: "Manrope", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: var(--mint);
+  color: var(--ink);
+}
+
+.container {
+  width: min(1120px, calc(100% - 2.5rem));
+  margin-inline: auto;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.85rem 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn-primary {
+  background: var(--mint);
+  color: var(--ink);
+}
+
+.btn-primary:hover {
+  background: #a8ffc0;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pill-mint {
+  background: rgba(125, 255, 163, 0.14);
+  color: var(--mint);
+}
+
+.pill-warn {
+  background: rgba(240, 180, 41, 0.14);
+  color: var(--warn);
+}
+
+.pill-danger {
+  background: rgba(255, 122, 110, 0.14);
+  color: var(--danger);
+}
+
+.pill-fog {
+  background: rgba(167, 184, 175, 0.12);
+  color: var(--fog);
+}
+
+.panel {
+  background: linear-gradient(180deg, rgba(34, 48, 42, 0.92), rgba(26, 38, 33, 0.96));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.table-wrap {
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+}
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 980px;
+}
+
+table.data th,
+table.data td {
+  padding: 0.85rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+table.data th {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fog);
+  background: rgba(0, 0, 0, 0.22);
+  position: sticky;
+  top: 0;
+}
+
+table.data tr:hover td {
+  background: rgba(125, 255, 163, 0.04);
+}
+
+table.data tr.look-first td {
+  background: rgba(125, 255, 163, 0.07);
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--fog);
+}
+
+.link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.link-row a {
+  font-size: 0.78rem;
+  color: var(--mint);
+  border-bottom: 1px solid rgba(125, 255, 163, 0.35);
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field label {
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fog);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--paper);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  outline: none;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: rgba(125, 255, 163, 0.55);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(2%, -3%, 0);
+  }
+}
+
+@keyframes pulse-line {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.rise {
+  animation: rise 0.7s ease both;
+}
+
+.rise-2 {
+  animation: rise 0.85s ease 0.08s both;
+}
+
+.rise-3 {
+  animation: rise 0.9s ease 0.16s both;
+}

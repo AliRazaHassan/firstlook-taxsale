@@ -1,0 +1,235 @@
+.page {
+  position: relative;
+  overflow: clip;
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(125, 255, 163, 0.16), transparent 55%),
+    radial-gradient(900px 500px at 90% 10%, rgba(61, 154, 92, 0.22), transparent 50%),
+    linear-gradient(165deg, #0a100e 0%, #12201a 42%, #0c1210 100%);
+}
+
+.atmosphere {
+  position: absolute;
+  inset: -10% -5% auto;
+  height: 70vh;
+  background:
+    linear-gradient(120deg, transparent 20%, rgba(125, 255, 163, 0.08) 45%, transparent 70%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(238, 244, 239, 0.035) 0 1px,
+      transparent 1px 48px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(238, 244, 239, 0.03) 0 1px,
+      transparent 1px 48px
+    );
+  mask-image: linear-gradient(180deg, #000 35%, transparent 100%);
+  animation: drift 18s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.gridGlow {
+  position: absolute;
+  top: 18vh;
+  left: 8%;
+  width: 42vw;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--mint), transparent);
+  animation: pulse-line 3.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 1.4rem;
+  position: relative;
+  z-index: 2;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: -0.03em;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  color: var(--fog);
+  font-weight: 600;
+}
+
+.hero {
+  position: relative;
+  z-index: 2;
+  min-height: calc(100vh - 5.5rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-bottom: 4rem;
+}
+
+.kicker {
+  margin: 0 0 0.8rem;
+  color: var(--mint);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.logoHero {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(4.2rem, 13vw, 8.5rem);
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+  font-weight: 800;
+}
+
+.sub {
+  margin: 1.2rem 0 0;
+  max-width: 34rem;
+  font-size: clamp(1.1rem, 2.2vw, 1.35rem);
+  color: var(--fog);
+  line-height: 1.45;
+}
+
+.ctaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 2rem;
+}
+
+.section {
+  position: relative;
+  z-index: 2;
+  padding: 4.5rem 0;
+}
+
+.h2 {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  letter-spacing: -0.03em;
+  max-width: 18ch;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.steps article {
+  padding: 1.4rem;
+}
+
+.steps span {
+  display: block;
+  color: var(--mint);
+  font-weight: 800;
+  margin-bottom: 0.8rem;
+}
+
+.steps h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+}
+
+.steps p {
+  margin: 0;
+  color: var(--fog);
+  line-height: 1.5;
+}
+
+.proof {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1.5rem;
+  padding: 1.6rem;
+  align-items: center;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.8rem;
+}
+
+.stats div {
+  text-align: center;
+  padding: 1rem 0.5rem;
+  border-left: 1px solid var(--line);
+}
+
+.stats strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  color: var(--mint);
+}
+
+.stats span {
+  color: var(--fog);
+  font-size: 0.85rem;
+}
+
+.pricing {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.pricing article {
+  padding: 1.5rem;
+}
+
+.price {
+  margin: 0.4rem 0 0.6rem;
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  color: var(--mint);
+}
+
+.featured {
+  outline: 1px solid rgba(125, 255, 163, 0.35);
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 2.5rem 0 3rem;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 860px) {
+  .navLinks a:not(.btn) {
+    display: none;
+  }
+
+  .steps,
+  .proof,
+  .pricing {
+    grid-template-columns: 1fr;
+  }
+
+  .stats div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -1,0 +1,224 @@
+.shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 400px at 100% 0%, rgba(125, 255, 163, 0.1), transparent 55%),
+    linear-gradient(180deg, #0b110f, #101916 40%, #0c1210);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  backdrop-filter: blur(10px);
+  background: rgba(12, 18, 16, 0.82);
+  z-index: 10;
+}
+
+.left,
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.2rem;
+  letter-spacing: -0.03em;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr) 340px;
+  gap: 1rem;
+  padding: 1rem;
+  align-items: start;
+}
+
+.sidebar,
+.detail {
+  padding: 1.1rem;
+  position: sticky;
+  top: 4.6rem;
+  max-height: calc(100vh - 5.2rem);
+  overflow: auto;
+}
+
+.sidebar h2,
+.detail h2,
+.detail h3,
+.empty h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.sidebar h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.25rem;
+}
+
+.status {
+  margin-top: 0.9rem;
+  font-size: 0.88rem;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.hint {
+  margin-top: 1.2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+}
+
+.hint code {
+  display: block;
+  white-space: pre-wrap;
+  color: var(--mint);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.main {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.summary .panel {
+  padding: 0.9rem 1rem;
+}
+
+.summary span {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.25rem;
+}
+
+.summary strong {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.tablePanel {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.empty {
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+}
+
+.detailHead {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+.detailHead > div {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.detailHead h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.15;
+}
+
+.detailHead p {
+  margin: 0;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.metricGrid div,
+.bidBox div {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.metricGrid span,
+.bidBox span {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fog);
+  margin-bottom: 0.2rem;
+}
+
+.metricGrid strong,
+.bidBox strong {
+  font-size: 1.05rem;
+}
+
+.bidBox {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0.9rem 0 1.1rem;
+}
+
+.notes {
+  color: var(--fog);
+  line-height: 1.5;
+  font-size: 0.92rem;
+}
+
+.flags {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--warn);
+  line-height: 1.45;
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar,
+  .detail {
+    position: static;
+    max-height: none;
+  }
+
+  .summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

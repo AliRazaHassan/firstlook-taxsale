@@ -1,8 +1,11 @@
 node_modules/
+.next/
 dist/
 .env
+.env.local
 output/*.csv
 output/*.json
 !output/.gitkeep
+!data/demo-results.json
 *.log
 .DS_Store

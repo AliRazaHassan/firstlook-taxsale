@@ -1,99 +1,62 @@
-# Tax-Sale Research Agent — Phase 1 Prototype
+# FirstLook — Tax-Sale Deal Screener MVP
 
-Automated research workflow (not a chatbot) that takes a county tax-sale list, enriches each parcel with **legitimate public APIs**, builds investor research links, scores properties against a buy box, and writes a **Google-Sheets-ready CSV**.
+**Product:** FirstLook  
+**Job:** Tell investors which tax-sale properties to look at first.
 
-## What Phase 1 answers
+Not a chatbot. An automated research workflow that ranks parcels and exports a usable sheet.
 
-**Out of this tax-sale list, which properties should I look at first?**
+## What the MVP includes
 
-## Demo data
-
-Includes a real public sample from Clayton County, GA (July 7, 2026 tax sale posting): 27 parcels.
-
-Source: [Clayton County July 2026 tax sale PDF](https://publicaccess.claytoncountyga.gov/content/PDF/july_2026_tax_sale.pdf)
-
-## Stack
-
-| Layer | Choice | Why |
-| --- | --- | --- |
-| Runtime | Node.js + TypeScript | Maintainable, easy to host later |
-| Geocoding | U.S. Census Geocoder | Official, free, no scraping |
-| Neighborhood value | ACS via Census Reporter (`B25077` / `B19013`) | Official median home value & income by tract; optional `CENSUS_API_KEY` fallback |
-| County assessor links | Clayton qPublic deep links | Legitimate county portal |
-| Listing portals | Zillow / Redfin / Regrid / Google Maps search URLs | Human research shortcuts (no fragile scrape) |
-| Output | CSV (+ optional Google Sheets API) | Matches Phase 1 deliverable |
-
-Optional later: RentCast / ATTOM / Estated for paid AVMs, n8n/Make wrappers, LLM narrative notes.
+- Landing page (`/`)
+- Investor app (`/app`)
+- Clayton County demo (instant, pre-researched)
+- Live CSV research (up to 30 parcels) via Census Geocoder + ACS
+- Score / rank / red flags / research links
+- Max-bid calculator (ARV − rehab − holding − closings − profit)
+- CSV export for Google Sheets
 
 ## Quick start
 
 ```bash
 cd E:\taxsale-agent
 npm install
-npm run research
+npm run dev
 ```
 
-Outputs:
+Open http://localhost:3000
 
-- `output/taxsale-research-latest.csv` — import into Google Sheets
-- `output/taxsale-research-latest.json` — full machine-readable results
+## Demo
 
-### Optional Google Sheets upload
+1. Go to `/app`
+2. Demo loads automatically (Clayton County, GA — July 2026 sample)
+3. Click **Look first** filter
+4. Export CSV → import to Google Sheets
 
-1. Create a Google Cloud service account with Sheets access
-2. Share your spreadsheet with that service account email
-3. Copy `.env.example` → `.env` and fill credentials
-4. Run:
+## Live research CSV format
 
-```bash
-npm run research:sheets
+```csv
+sale_date,parcel_id,owner,address,tax_years,assessed_fmv,cry_out_bid,property_type_hint,county,state,city_hint
+07/07/2026,05176A D012,LOREDO GORGE,10341 CANYON TRL,2024|2025,253500,10727.16,residential,Clayton,GA,Jonesboro
 ```
 
-## Input format
+Sample file: `data/clayton-ga-july-2026-sample.csv`
 
-CSV columns:
+## Pricing (suggested)
 
-`sale_date,parcel_id,owner,address,tax_years,assessed_fmv,cry_out_bid,property_type_hint,county,state,city_hint`
+| Plan | Price | Includes |
+|------|-------|----------|
+| Prototype | $125 | One list, 20–30 parcels, ranked sheet |
+| Monthly AI employee | $149/mo | Ongoing lists, buy-box tuning, max-bid |
 
-`tax_years` uses `|` separators, e.g. `2023|2024|2025`.
+## Stack
 
-## Buy box
+- Next.js 15 + React 19
+- Census Geocoder + Census Reporter ACS
+- Buy-box scoring engine in `lib/engine/`
+- Optional CLI still available: `npm run research`
 
-Edit `data/buy-box.json` to change scoring weights and red-flag thresholds.
+## Honest limits (Phase 1)
 
-Default Phase 1 heuristics:
-
-- Prefer residential over vacant land
-- Reward wide spread between assessed FMV and cry-out bid
-- Penalize high tax burden ratio and long delinquency
-- Blend assessed FMV with ACS tract median for a market range estimate
-- Flag LLC/investor owners, incomplete addresses, and low-value parcels
-
-## Architecture
-
-```
-tax-sale CSV
-    → ingest / validate
-    → Census geocode (lat/lon, tract, ZIP)
-    → ACS tract enrichment
-    → link builder (assessor, Zillow, Redfin, Regrid, Maps)
-    → score + red flags + notes
-    → ranked CSV / Google Sheet
-```
-
-## Phase 2+ roadmap
-
-1. Full-list batching (hundreds of parcels) + queue/retries
-2. Paid AVM + comps (RentCast / ATTOM)
-3. Full client buy box + max bid calculator
-4. Title/lien problem screening
-5. Scheduled monitoring of new county postings
-6. CRM / deal-tracker integration
-7. Additional AI employees for GC / contracting ops
-
-## Notes / limits (honest Phase 1)
-
-- Market values are **estimates** from assessed FMV + ACS tract medians, not MLS comps
-- Portal links open research pages; they do not scrape private listing payloads
-- City hints help geocoding when the county list omits city/ZIP
-- Replace the sample CSV with the client's real county list for production runs
+- Values = assessed FMV + ACS tract medians (not MLS comps)
+- Live research is rate-limited politely (~1–2 min for 27 parcels)
+- Assessor deep-links currently tuned for Clayton County qPublic
