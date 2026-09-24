@@ -1,0 +1,23 @@
+{
+  "name": "Phase 1 default buy box",
+  "description": "Starter investment criteria for ranking tax-sale properties. Replace with client-specific rules in later phases.",
+  "preferResidential": true,
+  "avoidVacantLand": true,
+  "avoidLlcInvestorOwned": false,
+  "maxTaxBurdenRatio": 0.12,
+  "minAssessedValue": 80000,
+  "targetEquitySpreadMin": 0.7,
+  "weights": {
+    "equitySpread": 35,
+    "taxBurden": 20,
+    "delinquencyYears": 15,
+    "propertyType": 15,
+    "neighborhoodValue": 15
+  },
+  "redFlags": {
+    "vacantLandKeywords": ["N LAKE", "LOT", "VACANT", "UNIMPROVED"],
+    "lowAssessedValue": 50000,
+    "highTaxBurdenRatio": 0.15,
+    "longDelinquencyYears": 4
+  }
+}
