@@ -20,6 +20,12 @@ export const metadata: Metadata = {
     "Upload a county tax-sale list. FirstLook ranks which properties to chase first — with scores, red flags, research links, and max-bid estimates.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover" as const,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${syne.variable} ${manrope.variable}`}>
@@ -27,6 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         style={{
           fontFamily: "var(--font-manrope), var(--font-body)",
           ["--font-display" as string]: "var(--font-syne), var(--font-display)",
+          margin: 0,
+          overflowX: "clip",
+          maxWidth: "100vw",
         }}
       >
         {children}
