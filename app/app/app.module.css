@@ -211,6 +211,37 @@
   gap: 0.45rem;
 }
 
+.filterBar {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.filterTools {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(90px, 0.6fr) minmax(120px, 0.8fr);
+  gap: 0.55rem;
+}
+
+.filterMeta {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.bidPreview {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #0a5746;
+  border-radius: 3px;
+  background: rgba(10, 87, 70, 0.06);
+  display: grid;
+  gap: 0.2rem;
+}
+
+.bidPreview strong {
+  font-family: var(--font-display), "Space Grotesk", system-ui, sans-serif;
+  font-size: 1.35rem;
+}
+
 .tablePanel {
   background: #fff;
 }

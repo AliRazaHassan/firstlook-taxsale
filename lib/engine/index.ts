@@ -1,4 +1,4 @@
-export { DEFAULT_BUY_BOX } from "./buyBox";
+export { DEFAULT_BUY_BOX, normalizeBuyBox } from "./buyBox";
 export { parseTaxSaleCsv, cleanStreetAddress } from "./ingest";
 export { researchProperties } from "./research";
 export { calculateMaxBid, attachMaxBids } from "./maxBid";

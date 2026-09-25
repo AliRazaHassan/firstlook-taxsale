@@ -1,9 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BidGauge, FunnelChart, ScoreBars, SparkBars, WorkflowDiagram } from "@/components/Charts";
-import { DEFAULT_BUY_BOX, type BuyBox, type ScoredProperty } from "@/lib/engine";
+import {
+  DEFAULT_BUY_BOX,
+  calculateMaxBid,
+  impactStats,
+  normalizeBuyBox,
+  rescoreExisting,
+  type BuyBox,
+  type ScoredProperty,
+} from "@/lib/engine";
 import { money, pct } from "@/lib/format";
 import styles from "./app.module.css";
 
@@ -29,7 +37,8 @@ type ResearchResponse = {
   error?: string;
 };
 
-type FilterMode = "all" | "look" | "flagged";
+type FilterMode = "all" | "look" | "flagged" | "clean" | "headroom" | "overbid";
+type SortMode = "rank" | "score" | "maxBid" | "cryOut" | "spread";
 type SideTab = "research" | "buybox" | "bid" | "watch";
 
 type DiligencePayload = {
@@ -56,21 +65,18 @@ type BidDefaults = {
 const BUY_BOX_KEY = "firstlook-buy-box-v2";
 const BID_KEY = "firstlook-bid-defaults-v2";
 
+function cloneDefaultBuyBox(): BuyBox {
+  return normalizeBuyBox(DEFAULT_BUY_BOX);
+}
+
 function loadBuyBox(): BuyBox {
-  if (typeof window === "undefined") return { ...DEFAULT_BUY_BOX, weights: { ...DEFAULT_BUY_BOX.weights }, redFlags: { ...DEFAULT_BUY_BOX.redFlags, vacantLandKeywords: [...DEFAULT_BUY_BOX.redFlags.vacantLandKeywords] } };
+  if (typeof window === "undefined") return cloneDefaultBuyBox();
   try {
     const raw = localStorage.getItem(BUY_BOX_KEY);
-    if (!raw) throw new Error("empty");
-    return { ...DEFAULT_BUY_BOX, ...JSON.parse(raw) } as BuyBox;
+    if (!raw) return cloneDefaultBuyBox();
+    return normalizeBuyBox(JSON.parse(raw));
   } catch {
-    return {
-      ...DEFAULT_BUY_BOX,
-      weights: { ...DEFAULT_BUY_BOX.weights },
-      redFlags: {
-        ...DEFAULT_BUY_BOX.redFlags,
-        vacantLandKeywords: [...DEFAULT_BUY_BOX.redFlags.vacantLandKeywords],
-      },
-    };
+    return cloneDefaultBuyBox();
   }
 }
 
@@ -87,11 +93,22 @@ function loadBidDefaults(): BidDefaults {
   }
 }
 
+function hasHeadroom(p: ScoredProperty): boolean {
+  return p.maxBid != null && p.maxBid > 0 && p.cry_out_bid < p.maxBid * 0.85;
+}
+
+function isOverbidRisk(p: ScoredProperty): boolean {
+  return p.maxBid == null || p.maxBid <= 0 || p.cry_out_bid >= p.maxBid;
+}
+
 export default function AppPage() {
   const [data, setData] = useState<ResearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("rank");
+  const [query, setQuery] = useState("");
+  const [minScore, setMinScore] = useState(0);
   const [selected, setSelected] = useState<ScoredProperty | null>(null);
   const [csvText, setCsvText] = useState("");
   const [status, setStatus] = useState("Ready");
@@ -105,6 +122,11 @@ export default function AppPage() {
   const [watchMsg, setWatchMsg] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
+  const buyBoxRef = useRef(buyBox);
+  const bidRef = useRef(bidDefaults);
+  buyBoxRef.current = buyBox;
+  bidRef.current = bidDefaults;
+
   const bidPayload = useMemo(
     () => ({
       rehab: bidDefaults.rehab,
@@ -115,10 +137,37 @@ export default function AppPage() {
     [bidDefaults],
   );
 
-  const applyResponse = useCallback((json: ResearchResponse) => {
+  const applyResponse = useCallback((json: ResearchResponse, keepParcelId?: string | null) => {
     setData(json);
-    setSelected(json.properties.find((p) => p.lookAtFirst) ?? json.properties[0] ?? null);
+    setSelected((prev) => {
+      const want = keepParcelId ?? prev?.parcel_id;
+      const kept = want ? json.properties.find((p) => p.parcel_id === want) : undefined;
+      return kept ?? json.properties.find((p) => p.lookAtFirst) ?? json.properties[0] ?? null;
+    });
   }, []);
+
+  const applyLocalRescore = useCallback(
+    (properties: ScoredProperty[], mode = "rescored") => {
+      const box = normalizeBuyBox(buyBoxRef.current);
+      const bid = bidRef.current;
+      const next = rescoreExisting(properties, box, {
+        rehab: bid.rehab,
+        holdingMonths: bid.holdingMonths,
+        monthlyHolding: bid.monthlyHolding,
+        desiredProfitPct: bid.desiredProfitPct / 100,
+      });
+      const impact = impactStats(next);
+      return {
+        mode,
+        total: next.length,
+        lookFirstCount: impact.lookFirst,
+        geocoded: next.filter((p) => p.geocodeStatus === "matched").length,
+        impact,
+        properties: next,
+      } satisfies ResearchResponse;
+    },
+    [],
+  );
 
   const loadDemo = useCallback(async () => {
     setLoading(true);
@@ -128,14 +177,16 @@ export default function AppPage() {
       const res = await fetch("/api/demo");
       const json = (await res.json()) as ResearchResponse;
       if (!res.ok) throw new Error((json as { error?: string }).error ?? "Demo failed");
-      applyResponse(json);
-      setStatus(`Demo ready · ${json.total} parcels`);
+      const scored = applyLocalRescore(json.properties, "demo");
+      applyResponse({ ...json, ...scored });
+      setStatus(`Demo ready · ${scored.total} parcels · your max-bid settings applied`);
+      setFilter("look");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load demo");
     } finally {
       setLoading(false);
     }
-  }, [applyResponse]);
+  }, [applyLocalRescore, applyResponse]);
 
   useEffect(() => {
     void loadDemo();
@@ -191,12 +242,54 @@ export default function AppPage() {
     localStorage.setItem(`firstlook-check-${selected.parcel_id}`, JSON.stringify(checkedItems));
   }, [checkedItems, selected?.parcel_id]);
 
+  const filterCounts = useMemo(() => {
+    const props = data?.properties ?? [];
+    return {
+      all: props.length,
+      look: props.filter((p) => p.lookAtFirst).length,
+      flagged: props.filter((p) => p.redFlags.length > 0).length,
+      clean: props.filter((p) => p.redFlags.length === 0).length,
+      headroom: props.filter(hasHeadroom).length,
+      overbid: props.filter(isOverbidRisk).length,
+    };
+  }, [data]);
+
   const filtered = useMemo(() => {
     if (!data) return [];
-    if (filter === "look") return data.properties.filter((p) => p.lookAtFirst);
-    if (filter === "flagged") return data.properties.filter((p) => p.redFlags.length > 0);
-    return data.properties;
-  }, [data, filter]);
+    const q = query.trim().toLowerCase();
+    let rows = data.properties.filter((p) => {
+      if (minScore > 0 && p.score < minScore) return false;
+      if (filter === "look" && !p.lookAtFirst) return false;
+      if (filter === "flagged" && p.redFlags.length === 0) return false;
+      if (filter === "clean" && p.redFlags.length > 0) return false;
+      if (filter === "headroom" && !hasHeadroom(p)) return false;
+      if (filter === "overbid" && !isOverbidRisk(p)) return false;
+      if (!q) return true;
+      return (
+        p.cleanAddress.toLowerCase().includes(q) ||
+        p.owner.toLowerCase().includes(q) ||
+        p.parcel_id.toLowerCase().includes(q) ||
+        (p.matchedAddress?.toLowerCase().includes(q) ?? false)
+      );
+    });
+
+    rows = [...rows].sort((a, b) => {
+      switch (sortMode) {
+        case "score":
+          return b.score - a.score;
+        case "maxBid":
+          return (b.maxBid ?? 0) - (a.maxBid ?? 0);
+        case "cryOut":
+          return a.cry_out_bid - b.cry_out_bid;
+        case "spread":
+          return b.equitySpread - a.equitySpread;
+        default:
+          return a.rank - b.rank;
+      }
+    });
+
+    return rows;
+  }, [data, filter, query, minScore, sortMode]);
 
   const impact = data?.impact;
 
@@ -207,6 +300,19 @@ export default function AppPage() {
       .slice(0, 12)
       .map((p) => p.score);
   }, [data]);
+
+  const liveBidPreview = useMemo(() => {
+    if (!selected) return null;
+    const arv = selected.estimatedMarketMid ?? selected.assessed_fmv;
+    return calculateMaxBid({
+      arv,
+      rehab: bidDefaults.rehab,
+      holdingMonths: bidDefaults.holdingMonths,
+      monthlyHolding: bidDefaults.monthlyHolding,
+      desiredProfit: Math.round(arv * (bidDefaults.desiredProfitPct / 100)),
+      cryOutBid: selected.cry_out_bid,
+    });
+  }, [selected, bidDefaults]);
 
   async function runLiveResearch() {
     if (!csvText.trim()) {
@@ -220,12 +326,17 @@ export default function AppPage() {
       const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv: csvText, buyBox, bidDefaults: bidPayload }),
+        body: JSON.stringify({
+          csv: csvText,
+          buyBox: normalizeBuyBox(buyBox),
+          bidDefaults: bidPayload,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Research failed");
-      applyResponse(json as ResearchResponse);
-      setStatus(`Live research complete · ${(json as ResearchResponse).total} parcels`);
+      const scored = applyLocalRescore((json as ResearchResponse).properties, "live");
+      applyResponse({ ...(json as ResearchResponse), ...scored });
+      setStatus(`Live research complete · ${scored.total} parcels`);
       setFilter("look");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Research failed");
@@ -234,34 +345,22 @@ export default function AppPage() {
     }
   }
 
-  async function applyBuyBoxAndBids() {
+  function applyBuyBoxAndBids() {
     if (!data?.properties.length) {
       setError("Load demo or research a list first.");
       return;
     }
-    setLoading(true);
     setError(null);
     setStatus("Re-ranking with your buy box + bid settings…");
     try {
-      const res = await fetch("/api/rescore", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          properties: data.properties,
-          buyBox,
-          bidDefaults: bidPayload,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Rescore failed");
-      applyResponse(json as ResearchResponse);
-      setStatus("Buy box applied — shortlist updated");
+      const scored = applyLocalRescore(data.properties);
+      applyResponse(scored, selected?.parcel_id);
+      setStatus(
+        `Applied · look-first ${scored.lookFirstCount} · top max bid ${money(scored.properties[0]?.maxBid)}`,
+      );
       setFilter("look");
-      setSideTab("research");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Rescore failed");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -272,12 +371,25 @@ export default function AppPage() {
     setStatus(`Loaded ${file.name}`);
   }
 
-  async function exportCsv(format: "full" | "bid-sheet" = "full") {
+  async function exportCsv(format: "full" | "bid-sheet" | "filtered" = "full") {
     if (!data?.properties.length) return;
+    const properties =
+      format === "filtered"
+        ? filtered
+        : format === "bid-sheet"
+          ? data.properties.filter((p) => p.lookAtFirst || p.score >= 70)
+          : data.properties;
+    if (!properties.length) {
+      setError("Nothing to export for this filter.");
+      return;
+    }
     const res = await fetch("/api/export", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ properties: data.properties, format }),
+      body: JSON.stringify({
+        properties,
+        format: format === "filtered" ? "full" : format,
+      }),
     });
     if (!res.ok) {
       const json = await res.json();
@@ -289,9 +401,14 @@ export default function AppPage() {
     const a = document.createElement("a");
     a.href = url;
     a.download =
-      format === "bid-sheet" ? "firstlook-auction-bid-sheet.csv" : "firstlook-look-first.csv";
+      format === "bid-sheet"
+        ? "firstlook-auction-bid-sheet.csv"
+        : format === "filtered"
+          ? "firstlook-filtered.csv"
+          : "firstlook-look-first.csv";
     a.click();
     URL.revokeObjectURL(url);
+    setStatus(`Exported ${properties.length} rows`);
   }
 
   async function registerWatch() {
@@ -313,25 +430,16 @@ export default function AppPage() {
     setWatchMsg(json.message);
   }
 
-  async function recalcMaxBid(property: ScoredProperty) {
+  function recalcMaxBid(property: ScoredProperty) {
     const arv = property.estimatedMarketMid ?? property.assessed_fmv;
-    const res = await fetch("/api/max-bid", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        arv,
-        rehab: bidDefaults.rehab,
-        holdingMonths: bidDefaults.holdingMonths,
-        monthlyHolding: bidDefaults.monthlyHolding,
-        desiredProfit: Math.round(arv * (bidDefaults.desiredProfitPct / 100)),
-        cryOutBid: property.cry_out_bid,
-      }),
+    const json = calculateMaxBid({
+      arv,
+      rehab: bidDefaults.rehab,
+      holdingMonths: bidDefaults.holdingMonths,
+      monthlyHolding: bidDefaults.monthlyHolding,
+      desiredProfit: Math.round(arv * (bidDefaults.desiredProfitPct / 100)),
+      cryOutBid: property.cry_out_bid,
     });
-    const json = await res.json();
-    if (!res.ok) {
-      setError(json.error ?? "Max bid failed");
-      return;
-    }
     const next: ScoredProperty = {
       ...property,
       maxBid: json.maxBid,
@@ -348,6 +456,7 @@ export default function AppPage() {
           }
         : prev,
     );
+    setStatus(`Max bid locked at ${money(json.maxBid)} for ${property.cleanAddress}`);
   }
 
   function toggleCheck(id: string) {
@@ -377,8 +486,15 @@ export default function AppPage() {
           >
             Bid sheet
           </button>
+          <button
+            className="btn btn-ghost"
+            onClick={() => void exportCsv("filtered")}
+            disabled={!data || !filtered.length || loading}
+          >
+            Export view
+          </button>
           <button className="btn btn-primary" onClick={() => void exportCsv("full")} disabled={!data || loading}>
-            Export
+            Export all
           </button>
         </div>
       </header>
@@ -498,8 +614,8 @@ export default function AppPage() {
               <button
                 className="btn btn-primary"
                 style={{ width: "100%", marginTop: "0.8rem" }}
-                onClick={() => void applyBuyBoxAndBids()}
-                disabled={loading || !data}
+                onClick={() => applyBuyBoxAndBids()}
+                disabled={!data}
               >
                 Apply buy box to list
               </button>
@@ -553,13 +669,22 @@ export default function AppPage() {
                   }
                 />
               </div>
+              {liveBidPreview && selected ? (
+                <div className={styles.bidPreview}>
+                  <span className="muted">Live preview · {selected.cleanAddress}</span>
+                  <strong className="mono">{money(liveBidPreview.maxBid)}</strong>
+                  <span className="muted">
+                    Profit at ceiling ≈ {money(liveBidPreview.projectedProfit)}
+                  </span>
+                </div>
+              ) : null}
               <button
                 className="btn btn-primary"
                 style={{ width: "100%", marginTop: "0.8rem" }}
-                onClick={() => void applyBuyBoxAndBids()}
-                disabled={loading || !data}
+                onClick={() => applyBuyBoxAndBids()}
+                disabled={!data}
               >
-                Recalc all max bids
+                Apply max bids to whole list
               </button>
             </>
           ) : null}
@@ -658,22 +783,61 @@ export default function AppPage() {
                 </div>
               ) : null}
 
-              <div className={styles.filterRow}>
-                {(
-                  [
-                    ["all", "All"],
-                    ["look", "Look first"],
-                    ["flagged", "Red flags"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    className={`btn ${filter === key ? "btn-primary" : "btn-ghost"}`}
-                    onClick={() => setFilter(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
+              <div className={styles.filterBar}>
+                <div className={styles.filterRow}>
+                  {(
+                    [
+                      ["all", `All (${filterCounts.all})`],
+                      ["look", `Look first (${filterCounts.look})`],
+                      ["flagged", `Flags (${filterCounts.flagged})`],
+                      ["clean", `Clean (${filterCounts.clean})`],
+                      ["headroom", `Bid OK (${filterCounts.headroom})`],
+                      ["overbid", `Walk (${filterCounts.overbid})`],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <button
+                      key={key}
+                      className={`btn ${filter === key ? "btn-primary" : "btn-ghost"}`}
+                      onClick={() => setFilter(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.filterTools}>
+                  <div className="field">
+                    <label>Search</label>
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Address, owner, APN…"
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Min score</label>
+                    <input
+                      type="number"
+                      value={minScore}
+                      onChange={(e) => setMinScore(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="field">
+                    <label>Sort</label>
+                    <select
+                      value={sortMode}
+                      onChange={(e) => setSortMode(e.target.value as SortMode)}
+                    >
+                      <option value="rank">Rank</option>
+                      <option value="score">Score</option>
+                      <option value="maxBid">Max bid</option>
+                      <option value="cryOut">Cry-out</option>
+                      <option value="spread">Equity spread</option>
+                    </select>
+                  </div>
+                </div>
+                <p className={`${styles.filterMeta} muted`}>
+                  Showing {filtered.length} of {data.total}
+                </p>
               </div>
 
               <div className={`table-wrap ${styles.tablePanel}`}>
@@ -828,8 +992,8 @@ export default function AppPage() {
                 </>
               ) : null}
 
-              <button className="btn btn-ghost" onClick={() => void recalcMaxBid(selected)}>
-                Recalc max bid with my settings
+              <button className="btn btn-ghost" onClick={() => recalcMaxBid(selected)}>
+                Lock max bid with my settings
               </button>
 
               <div className={styles.bidBox}>
@@ -845,6 +1009,12 @@ export default function AppPage() {
                   <span className="muted">Cry-out bid</span>
                   <strong className="mono">{money(selected.cry_out_bid)}</strong>
                 </div>
+                {liveBidPreview && liveBidPreview.maxBid !== selected.maxBid ? (
+                  <div>
+                    <span className="muted">Preview (not applied)</span>
+                    <strong className="mono">{money(liveBidPreview.maxBid)}</strong>
+                  </div>
+                ) : null}
               </div>
 
               <h3>Research links</h3>

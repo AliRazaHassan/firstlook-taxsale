@@ -3,6 +3,7 @@ import {
   BuyBoxSchema,
   DEFAULT_BUY_BOX,
   impactStats,
+  normalizeBuyBox,
   rescoreExisting,
   type ScoredProperty,
 } from "@/lib/engine";
@@ -26,9 +27,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "properties required" }, { status: 400 });
     }
 
-    const buyBox = body.buyBox
-      ? BuyBoxSchema.parse(body.buyBox)
-      : BuyBoxSchema.parse(DEFAULT_BUY_BOX);
+    const buyBox = normalizeBuyBox(body.buyBox ?? DEFAULT_BUY_BOX);
+    // Keep schema export warm / validate shape
+    BuyBoxSchema.parse(buyBox);
 
     const properties = rescoreExisting(body.properties, buyBox, body.bidDefaults);
     const impact = impactStats(properties);
