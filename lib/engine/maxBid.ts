@@ -1,5 +1,14 @@
 import type { MaxBidInput, MaxBidResult } from "./types";
 
+export type MaxBidDefaults = {
+  rehab?: number;
+  holdingMonths?: number;
+  monthlyHolding?: number;
+  closingBuyPct?: number;
+  closingSellPct?: number;
+  desiredProfitPct?: number;
+};
+
 /** Classic investor MAO: ARV minus all costs and desired profit. */
 export function calculateMaxBid(input: MaxBidInput): MaxBidResult {
   const arv = Math.max(0, input.arv);
@@ -12,7 +21,6 @@ export function calculateMaxBid(input: MaxBidInput): MaxBidResult {
   const contingency = input.contingency ?? Math.round(rehab * 0.1);
 
   const holding = holdingMonths * monthlyHolding;
-  // closing buy is % of purchase — iterate once with provisional maxBid ≈ ARV*0.7
   let provisional = arv * 0.7;
   for (let i = 0; i < 3; i++) {
     const closingBuy = provisional * closingBuyPct;
@@ -45,19 +53,29 @@ export function calculateMaxBid(input: MaxBidInput): MaxBidResult {
   };
 }
 
-export function attachMaxBids<T extends {
-  estimatedMarketMid: number | null;
-  assessed_fmv: number;
-  cry_out_bid: number;
-}>(
+export function attachMaxBids<
+  T extends {
+    estimatedMarketMid: number | null;
+    assessed_fmv: number;
+    cry_out_bid: number;
+  },
+>(
   rows: T[],
-  rehabEstimate = 25000,
+  defaults: MaxBidDefaults = {},
 ): (T & { maxBid: number; projectedProfitAtMaxBid: number })[] {
+  const rehab = defaults.rehab ?? 25000;
+  const desiredProfitPct = defaults.desiredProfitPct ?? 0.15;
+
   return rows.map((row) => {
     const arv = row.estimatedMarketMid ?? row.assessed_fmv;
     const result = calculateMaxBid({
       arv,
-      rehab: rehabEstimate,
+      rehab,
+      holdingMonths: defaults.holdingMonths,
+      monthlyHolding: defaults.monthlyHolding,
+      closingBuyPct: defaults.closingBuyPct,
+      closingSellPct: defaults.closingSellPct,
+      desiredProfit: Math.round(arv * desiredProfitPct),
       cryOutBid: row.cry_out_bid,
     });
     return {

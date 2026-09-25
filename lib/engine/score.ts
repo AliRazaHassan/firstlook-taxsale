@@ -114,6 +114,15 @@ export function scoreProperty(args: {
     typeScore = Math.min(typeScore, 30);
   }
 
+  if (
+    buyBox.avoidLlcInvestorOwned &&
+    /\bLLC\b|\bINC\b|\bINSTITUTE\b|\bASSETS\b|\bINVESTMENTS\b|\bHOMES\b|\bENTERPRISES\b/i.test(
+      property.owner,
+    )
+  ) {
+    typeScore = Math.min(typeScore, 45);
+  }
+
   const totalWeight = w.equitySpread + w.taxBurden + w.delinquencyYears + w.propertyType + w.neighborhoodValue;
   const raw =
     (equityScore * w.equitySpread +

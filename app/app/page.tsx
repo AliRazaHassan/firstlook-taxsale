@@ -2,9 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { ScoredProperty } from "@/lib/engine";
+import { DEFAULT_BUY_BOX, type BuyBox, type ScoredProperty } from "@/lib/engine";
 import { money, pct } from "@/lib/format";
 import styles from "./app.module.css";
+
+type Impact = {
+  total: number;
+  lookFirst: number;
+  flagged: number;
+  skipped: number;
+  hoursSaved: number;
+  problemSolvedPct: number;
+  headline: string;
+};
 
 type ResearchResponse = {
   mode: string;
@@ -13,11 +23,54 @@ type ResearchResponse = {
   total: number;
   lookFirstCount: number;
   geocoded: number;
+  impact?: Impact;
   properties: ScoredProperty[];
   error?: string;
 };
 
 type FilterMode = "all" | "look" | "flagged";
+type SideTab = "research" | "buybox" | "bid";
+
+type BidDefaults = {
+  rehab: number;
+  holdingMonths: number;
+  monthlyHolding: number;
+  desiredProfitPct: number;
+};
+
+const BUY_BOX_KEY = "firstlook-buy-box-v2";
+const BID_KEY = "firstlook-bid-defaults-v2";
+
+function loadBuyBox(): BuyBox {
+  if (typeof window === "undefined") return { ...DEFAULT_BUY_BOX, weights: { ...DEFAULT_BUY_BOX.weights }, redFlags: { ...DEFAULT_BUY_BOX.redFlags, vacantLandKeywords: [...DEFAULT_BUY_BOX.redFlags.vacantLandKeywords] } };
+  try {
+    const raw = localStorage.getItem(BUY_BOX_KEY);
+    if (!raw) throw new Error("empty");
+    return { ...DEFAULT_BUY_BOX, ...JSON.parse(raw) } as BuyBox;
+  } catch {
+    return {
+      ...DEFAULT_BUY_BOX,
+      weights: { ...DEFAULT_BUY_BOX.weights },
+      redFlags: {
+        ...DEFAULT_BUY_BOX.redFlags,
+        vacantLandKeywords: [...DEFAULT_BUY_BOX.redFlags.vacantLandKeywords],
+      },
+    };
+  }
+}
+
+function loadBidDefaults(): BidDefaults {
+  if (typeof window === "undefined") {
+    return { rehab: 25000, holdingMonths: 4, monthlyHolding: 500, desiredProfitPct: 15 };
+  }
+  try {
+    const raw = localStorage.getItem(BID_KEY);
+    if (!raw) throw new Error("empty");
+    return { rehab: 25000, holdingMonths: 4, monthlyHolding: 500, desiredProfitPct: 15, ...JSON.parse(raw) };
+  } catch {
+    return { rehab: 25000, holdingMonths: 4, monthlyHolding: 500, desiredProfitPct: 15 };
+  }
+}
 
 export default function AppPage() {
   const [data, setData] = useState<ResearchResponse | null>(null);
@@ -26,8 +79,25 @@ export default function AppPage() {
   const [filter, setFilter] = useState<FilterMode>("all");
   const [selected, setSelected] = useState<ScoredProperty | null>(null);
   const [csvText, setCsvText] = useState("");
-  const [rehab, setRehab] = useState(25000);
   const [status, setStatus] = useState("Ready");
+  const [sideTab, setSideTab] = useState<SideTab>("research");
+  const [buyBox, setBuyBox] = useState<BuyBox>(loadBuyBox);
+  const [bidDefaults, setBidDefaults] = useState<BidDefaults>(loadBidDefaults);
+
+  const bidPayload = useMemo(
+    () => ({
+      rehab: bidDefaults.rehab,
+      holdingMonths: bidDefaults.holdingMonths,
+      monthlyHolding: bidDefaults.monthlyHolding,
+      desiredProfitPct: bidDefaults.desiredProfitPct / 100,
+    }),
+    [bidDefaults],
+  );
+
+  const applyResponse = useCallback((json: ResearchResponse) => {
+    setData(json);
+    setSelected(json.properties.find((p) => p.lookAtFirst) ?? json.properties[0] ?? null);
+  }, []);
 
   const loadDemo = useCallback(async () => {
     setLoading(true);
@@ -37,19 +107,26 @@ export default function AppPage() {
       const res = await fetch("/api/demo");
       const json = (await res.json()) as ResearchResponse;
       if (!res.ok) throw new Error((json as { error?: string }).error ?? "Demo failed");
-      setData(json);
-      setSelected(json.properties.find((p) => p.lookAtFirst) ?? json.properties[0] ?? null);
+      applyResponse(json);
       setStatus(`Demo ready · ${json.total} parcels`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load demo");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applyResponse]);
 
   useEffect(() => {
     void loadDemo();
   }, [loadDemo]);
+
+  useEffect(() => {
+    localStorage.setItem(BUY_BOX_KEY, JSON.stringify(buyBox));
+  }, [buyBox]);
+
+  useEffect(() => {
+    localStorage.setItem(BID_KEY, JSON.stringify(bidDefaults));
+  }, [bidDefaults]);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -58,6 +135,8 @@ export default function AppPage() {
     return data.properties;
   }, [data, filter]);
 
+  const impact = data?.impact;
+
   async function runLiveResearch() {
     if (!csvText.trim()) {
       setError("Paste a tax-sale CSV first (or use the demo).");
@@ -65,21 +144,51 @@ export default function AppPage() {
     }
     setLoading(true);
     setError(null);
-    setStatus("Researching parcels via Census + ACS… this can take 1–2 minutes");
+    setStatus("Researching with your buy box… 1–3 minutes for larger lists");
     try {
       const res = await fetch("/api/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv: csvText }),
+        body: JSON.stringify({ csv: csvText, buyBox, bidDefaults: bidPayload }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Research failed");
-      setData(json as ResearchResponse);
-      const props = (json as ResearchResponse).properties;
-      setSelected(props.find((p) => p.lookAtFirst) ?? props[0] ?? null);
-      setStatus(`Live research complete · ${props.length} parcels`);
+      applyResponse(json as ResearchResponse);
+      setStatus(`Live research complete · ${(json as ResearchResponse).total} parcels`);
+      setFilter("look");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Research failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function applyBuyBoxAndBids() {
+    if (!data?.properties.length) {
+      setError("Load demo or research a list first.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setStatus("Re-ranking with your buy box + bid settings…");
+    try {
+      const res = await fetch("/api/rescore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          properties: data.properties,
+          buyBox,
+          bidDefaults: bidPayload,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Rescore failed");
+      applyResponse(json as ResearchResponse);
+      setStatus("Buy box applied — shortlist updated");
+      setFilter("look");
+      setSideTab("research");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Rescore failed");
     } finally {
       setLoading(false);
     }
@@ -108,7 +217,7 @@ export default function AppPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "firstlook-taxsale-research.csv";
+    a.download = "firstlook-look-first.csv";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -120,7 +229,10 @@ export default function AppPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         arv,
-        rehab,
+        rehab: bidDefaults.rehab,
+        holdingMonths: bidDefaults.holdingMonths,
+        monthlyHolding: bidDefaults.monthlyHolding,
+        desiredProfit: Math.round(arv * (bidDefaults.desiredProfitPct / 100)),
         cryOutBid: property.cry_out_bid,
       }),
     });
@@ -143,61 +255,227 @@ export default function AppPage() {
           <Link href="/" className={styles.brand}>
             FirstLook
           </Link>
-          <span className="pill pill-mint">MVP</span>
+          <span className="pill pill-mint">Phase 2</span>
         </div>
         <div className={styles.actions}>
           <button className="btn btn-ghost" onClick={() => void loadDemo()} disabled={loading}>
             Load demo
           </button>
           <button className="btn btn-primary" onClick={() => void exportCsv()} disabled={!data || loading}>
-            Export CSV
+            Export sheet
           </button>
         </div>
       </header>
 
       <div className={styles.layout}>
         <aside className={`panel ${styles.sidebar}`}>
-          <h2>Run research</h2>
-          <p className="muted">Upload or paste a county tax-sale CSV (max 30 parcels).</p>
-
-          <div className="field">
-            <label>CSV file</label>
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
-            />
+          <div className={styles.tabRow}>
+            {(
+              [
+                ["research", "Research"],
+                ["buybox", "Buy box"],
+                ["bid", "Max bid"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                className={`btn ${sideTab === key ? "btn-primary" : "btn-ghost"}`}
+                onClick={() => setSideTab(key)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
-          <div className="field">
-            <label>Or paste CSV</label>
-            <textarea
-              rows={8}
-              value={csvText}
-              onChange={(e) => setCsvText(e.target.value)}
-              placeholder="sale_date,parcel_id,owner,address,tax_years,assessed_fmv,cry_out_bid,..."
-            />
-          </div>
+          {sideTab === "research" ? (
+            <>
+              <h2>Run research</h2>
+              <p className="muted">Upload your county tax-sale CSV (up to 100 parcels in Phase 2).</p>
 
-          <button className="btn btn-primary" style={{ width: "100%" }} onClick={() => void runLiveResearch()} disabled={loading}>
-            {loading ? "Working…" : "Research my list"}
-          </button>
+              <div className="field">
+                <label>CSV file</label>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+
+              <div className="field">
+                <label>Or paste CSV</label>
+                <textarea
+                  rows={7}
+                  value={csvText}
+                  onChange={(e) => setCsvText(e.target.value)}
+                  placeholder="parcel_id,owner,address,assessed_fmv,cry_out_bid,tax_years,county,state"
+                />
+              </div>
+
+              <button
+                className="btn btn-primary"
+                style={{ width: "100%" }}
+                onClick={() => void runLiveResearch()}
+                disabled={loading}
+              >
+                {loading ? "Working…" : "Research my list"}
+              </button>
+            </>
+          ) : null}
+
+          {sideTab === "buybox" ? (
+            <>
+              <h2>Your buy box</h2>
+              <p className="muted">This is how FirstLook decides what “good” means for you.</p>
+
+              <div className="field">
+                <label>Min assessed value ($)</label>
+                <input
+                  type="number"
+                  value={buyBox.minAssessedValue}
+                  onChange={(e) =>
+                    setBuyBox((b) => ({ ...b, minAssessedValue: Number(e.target.value) || 0 }))
+                  }
+                />
+              </div>
+              <div className="field">
+                <label>Max tax burden % of FMV</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={Math.round(buyBox.maxTaxBurdenRatio * 1000) / 10}
+                  onChange={(e) =>
+                    setBuyBox((b) => ({
+                      ...b,
+                      maxTaxBurdenRatio: (Number(e.target.value) || 0) / 100,
+                    }))
+                  }
+                />
+              </div>
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  checked={buyBox.preferResidential}
+                  onChange={(e) => setBuyBox((b) => ({ ...b, preferResidential: e.target.checked }))}
+                />
+                Prefer residential
+              </label>
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  checked={buyBox.avoidVacantLand}
+                  onChange={(e) => setBuyBox((b) => ({ ...b, avoidVacantLand: e.target.checked }))}
+                />
+                Avoid vacant / low-value land
+              </label>
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  checked={buyBox.avoidLlcInvestorOwned}
+                  onChange={(e) =>
+                    setBuyBox((b) => ({ ...b, avoidLlcInvestorOwned: e.target.checked }))
+                  }
+                />
+                Soft-penalize LLC / investor owners
+              </label>
+
+              <button
+                className="btn btn-primary"
+                style={{ width: "100%", marginTop: "0.8rem" }}
+                onClick={() => void applyBuyBoxAndBids()}
+                disabled={loading || !data}
+              >
+                Apply buy box to list
+              </button>
+            </>
+          ) : null}
+
+          {sideTab === "bid" ? (
+            <>
+              <h2>Max bid settings</h2>
+              <p className="muted">Stops overbidding — the other half of list chaos.</p>
+              <div className="field">
+                <label>Default rehab ($)</label>
+                <input
+                  type="number"
+                  value={bidDefaults.rehab}
+                  onChange={(e) =>
+                    setBidDefaults((b) => ({ ...b, rehab: Number(e.target.value) || 0 }))
+                  }
+                />
+              </div>
+              <div className="field">
+                <label>Holding months</label>
+                <input
+                  type="number"
+                  value={bidDefaults.holdingMonths}
+                  onChange={(e) =>
+                    setBidDefaults((b) => ({ ...b, holdingMonths: Number(e.target.value) || 0 }))
+                  }
+                />
+              </div>
+              <div className="field">
+                <label>Monthly holding ($)</label>
+                <input
+                  type="number"
+                  value={bidDefaults.monthlyHolding}
+                  onChange={(e) =>
+                    setBidDefaults((b) => ({ ...b, monthlyHolding: Number(e.target.value) || 0 }))
+                  }
+                />
+              </div>
+              <div className="field">
+                <label>Desired profit % of ARV</label>
+                <input
+                  type="number"
+                  value={bidDefaults.desiredProfitPct}
+                  onChange={(e) =>
+                    setBidDefaults((b) => ({
+                      ...b,
+                      desiredProfitPct: Number(e.target.value) || 0,
+                    }))
+                  }
+                />
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{ width: "100%", marginTop: "0.8rem" }}
+                onClick={() => void applyBuyBoxAndBids()}
+                disabled={loading || !data}
+              >
+                Recalc all max bids
+              </button>
+            </>
+          ) : null}
 
           <p className={`${styles.status} muted`}>{status}</p>
           {error ? <p className={styles.error}>{error}</p> : null}
 
           <div className={styles.hint}>
-            <strong>Columns</strong>
-            <code>parcel_id, owner, address, assessed_fmv, cry_out_bid, tax_years, county, state</code>
+            <strong>Phase 2 solves</strong>
+            <span className="muted">
+              Your rules + your max bid + ranked shortlist. Export to Google Sheets and diligence
+              only the winners.
+            </span>
           </div>
         </aside>
 
         <section className={styles.main}>
           {data ? (
             <>
+              {impact ? (
+                <div className={`panel ${styles.impact}`}>
+                  <span className="pill pill-mint">{impact.problemSolvedPct}% noise cut</span>
+                  <h2>{impact.headline}</h2>
+                  <p className="muted">
+                    That is the half of tax-sale work that usually wastes your week — deciding what
+                    not to chase.
+                  </p>
+                </div>
+              ) : null}
+
               <div className={styles.summary}>
                 <div className="panel">
-                  <span className="muted">Parcels</span>
+                  <span className="muted">Parcels in</span>
                   <strong className="mono">{data.total}</strong>
                 </div>
                 <div className="panel">
@@ -205,12 +483,12 @@ export default function AppPage() {
                   <strong className="mono">{data.lookFirstCount}</strong>
                 </div>
                 <div className="panel">
-                  <span className="muted">Geocoded</span>
-                  <strong className="mono">{data.geocoded}</strong>
+                  <span className="muted">Can skip</span>
+                  <strong className="mono">{impact?.skipped ?? "—"}</strong>
                 </div>
                 <div className="panel">
-                  <span className="muted">Mode</span>
-                  <strong>{data.mode}</strong>
+                  <span className="muted">Hrs saved</span>
+                  <strong className="mono">~{impact?.hoursSaved ?? "—"}</strong>
                 </div>
               </div>
 
@@ -282,7 +560,7 @@ export default function AppPage() {
             </>
           ) : (
             <div className={`panel ${styles.empty}`}>
-              <h2>Load the demo to see ranked tax-sale picks</h2>
+              <h2>Load the demo to see how much list noise FirstLook removes</h2>
               <button className="btn btn-primary" onClick={() => void loadDemo()} disabled={loading}>
                 Load Clayton demo
               </button>
@@ -321,16 +599,8 @@ export default function AppPage() {
                 </div>
               </div>
 
-              <div className="field">
-                <label>Rehab estimate for max bid</label>
-                <input
-                  type="number"
-                  value={rehab}
-                  onChange={(e) => setRehab(Number(e.target.value) || 0)}
-                />
-              </div>
               <button className="btn btn-ghost" onClick={() => void recalcMaxBid(selected)}>
-                Recalc max bid
+                Recalc max bid with my settings
               </button>
 
               <div className={styles.bidBox}>

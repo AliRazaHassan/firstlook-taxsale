@@ -101,6 +101,45 @@
   font-size: 0.85rem;
 }
 
+.tabRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.tabRow .btn {
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.55rem 0;
+  color: var(--fog);
+  font-size: 0.92rem;
+}
+
+.impact {
+  padding: 1.1rem 1.2rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.impact h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2.4vw, 1.45rem);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.impact p {
+  margin: 0;
+}
+
 .hint code {
   display: block;
   white-space: pre-wrap;

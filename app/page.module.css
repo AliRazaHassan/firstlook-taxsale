@@ -203,6 +203,68 @@
   outline: 1px solid rgba(125, 255, 163, 0.35);
 }
 
+.painGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.painGrid article {
+  padding: 1.4rem;
+}
+
+.painGrid h3 {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+}
+
+.painGrid p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.phaseIntro {
+  margin: -0.6rem 0 1.4rem;
+  max-width: 42rem;
+  line-height: 1.5;
+}
+
+.phaseList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.phaseCard {
+  padding: 1.3rem;
+}
+
+.phaseTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.phaseCard h3 {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.problemLine {
+  margin: 0 0 0.55rem;
+  color: var(--paper);
+  line-height: 1.45;
+}
+
+.problemLine span {
+  color: var(--mint);
+  font-weight: 700;
+}
+
 .footer {
   display: flex;
   justify-content: space-between;
@@ -219,7 +281,9 @@
 
   .steps,
   .proof,
-  .pricing {
+  .pricing,
+  .painGrid,
+  .phaseList {
     grid-template-columns: 1fr;
   }
 
