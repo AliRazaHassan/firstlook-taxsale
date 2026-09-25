@@ -29,7 +29,21 @@ type ResearchResponse = {
 };
 
 type FilterMode = "all" | "look" | "flagged";
-type SideTab = "research" | "buybox" | "bid";
+type SideTab = "research" | "buybox" | "bid" | "watch";
+
+type DiligencePayload = {
+  rules: {
+    label: string;
+    saleType: string;
+    redemptionSummary: string;
+    paymentWindow: string;
+    overbidWarning: string;
+    commonSurvivingLiens: string[];
+  };
+  checklist: Array<{ id: string; label: string; severity: string; autoHint?: string }>;
+  valuation: { level: string; label: string; detail: string };
+  overbid: { level: string; message: string };
+};
 
 type BidDefaults = {
   rehab: number;
@@ -83,6 +97,11 @@ export default function AppPage() {
   const [sideTab, setSideTab] = useState<SideTab>("research");
   const [buyBox, setBuyBox] = useState<BuyBox>(loadBuyBox);
   const [bidDefaults, setBidDefaults] = useState<BidDefaults>(loadBidDefaults);
+  const [diligence, setDiligence] = useState<DiligencePayload | null>(null);
+  const [watchEmail, setWatchEmail] = useState("");
+  const [watchCounty, setWatchCounty] = useState("Clayton");
+  const [watchState, setWatchState] = useState("GA");
+  const [watchMsg, setWatchMsg] = useState<string | null>(null);
 
   const bidPayload = useMemo(
     () => ({
@@ -127,6 +146,30 @@ export default function AppPage() {
   useEffect(() => {
     localStorage.setItem(BID_KEY, JSON.stringify(bidDefaults));
   }, [bidDefaults]);
+
+  useEffect(() => {
+    if (!selected) {
+      setDiligence(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/diligence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ property: selected }),
+        });
+        const json = await res.json();
+        if (!cancelled && res.ok) setDiligence(json as DiligencePayload);
+      } catch {
+        if (!cancelled) setDiligence(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -201,12 +244,12 @@ export default function AppPage() {
     setStatus(`Loaded ${file.name}`);
   }
 
-  async function exportCsv() {
+  async function exportCsv(format: "full" | "bid-sheet" = "full") {
     if (!data?.properties.length) return;
     const res = await fetch("/api/export", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ properties: data.properties }),
+      body: JSON.stringify({ properties: data.properties, format }),
     });
     if (!res.ok) {
       const json = await res.json();
@@ -217,9 +260,29 @@ export default function AppPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "firstlook-look-first.csv";
+    a.download =
+      format === "bid-sheet" ? "firstlook-auction-bid-sheet.csv" : "firstlook-look-first.csv";
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function registerWatch() {
+    setWatchMsg(null);
+    const res = await fetch("/api/monitor", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: watchEmail,
+        county: watchCounty,
+        state: watchState,
+      }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error ?? "Watch failed");
+      return;
+    }
+    setWatchMsg(json.message);
   }
 
   async function recalcMaxBid(property: ScoredProperty) {
@@ -258,11 +321,21 @@ export default function AppPage() {
           <span className="pill pill-mint">Phase 2</span>
         </div>
         <div className={styles.actions}>
+          <a className="btn btn-ghost" href="/api/export">
+            CSV template
+          </a>
           <button className="btn btn-ghost" onClick={() => void loadDemo()} disabled={loading}>
-            Load demo
+            Demo
           </button>
-          <button className="btn btn-primary" onClick={() => void exportCsv()} disabled={!data || loading}>
-            Export sheet
+          <button
+            className="btn btn-ghost"
+            onClick={() => void exportCsv("bid-sheet")}
+            disabled={!data || loading}
+          >
+            Bid sheet
+          </button>
+          <button className="btn btn-primary" onClick={() => void exportCsv("full")} disabled={!data || loading}>
+            Export
           </button>
         </div>
       </header>
@@ -275,6 +348,7 @@ export default function AppPage() {
                 ["research", "Research"],
                 ["buybox", "Buy box"],
                 ["bid", "Max bid"],
+                ["watch", "Watch"],
               ] as const
             ).map(([key, label]) => (
               <button
@@ -392,7 +466,7 @@ export default function AppPage() {
           {sideTab === "bid" ? (
             <>
               <h2>Max bid settings</h2>
-              <p className="muted">Stops overbidding — the other half of list chaos.</p>
+              <p className="muted">Stops overbidding — the #1 auction money leak.</p>
               <div className="field">
                 <label>Default rehab ($)</label>
                 <input
@@ -444,6 +518,35 @@ export default function AppPage() {
               >
                 Recalc all max bids
               </button>
+            </>
+          ) : null}
+
+          {sideTab === "watch" ? (
+            <>
+              <h2>County watch</h2>
+              <p className="muted">
+                Phase 4: register for new tax-sale list alerts in your counties.
+              </p>
+              <div className="field">
+                <label>Email</label>
+                <input value={watchEmail} onChange={(e) => setWatchEmail(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>County</label>
+                <input value={watchCounty} onChange={(e) => setWatchCounty(e.target.value)} />
+              </div>
+              <div className="field">
+                <label>State</label>
+                <input value={watchState} onChange={(e) => setWatchState(e.target.value)} />
+              </div>
+              <button
+                className="btn btn-primary"
+                style={{ width: "100%", marginTop: "0.8rem" }}
+                onClick={() => void registerWatch()}
+              >
+                Register watch
+              </button>
+              {watchMsg ? <p className={styles.status}>{watchMsg}</p> : null}
             </>
           ) : null}
 
@@ -598,6 +701,42 @@ export default function AppPage() {
                   <strong className="mono">{money(selected.tractMedianHomeValue)}</strong>
                 </div>
               </div>
+
+              {diligence ? (
+                <>
+                  <div
+                    className={`${styles.alert} ${
+                      diligence.overbid.level === "danger"
+                        ? styles.alertDanger
+                        : diligence.overbid.level === "caution"
+                          ? styles.alertCaution
+                          : styles.alertOk
+                    }`}
+                  >
+                    <strong>Overbid guard:</strong> {diligence.overbid.message}
+                  </div>
+                  <div className={styles.rulesBox}>
+                    <strong>{diligence.rules.label}</strong>
+                    <div style={{ marginTop: "0.35rem" }}>{diligence.rules.redemptionSummary}</div>
+                    <div style={{ marginTop: "0.35rem" }} className="muted">
+                      Valuation: {diligence.valuation.label} — {diligence.valuation.detail}
+                    </div>
+                  </div>
+                  <h3>Pre-bid checklist</h3>
+                  <ul className={styles.checkList}>
+                    {diligence.checklist.map((item) => (
+                      <li key={item.id}>
+                        <strong>[{item.severity}]</strong> {item.label}
+                        {item.autoHint ? (
+                          <div className="muted" style={{ fontSize: "0.82rem" }}>
+                            {item.autoHint}
+                          </div>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
 
               <button className="btn btn-ghost" onClick={() => void recalcMaxBid(selected)}>
                 Recalc max bid with my settings

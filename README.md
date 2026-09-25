@@ -1,35 +1,44 @@
-# FirstLook — Tax-Sale Deal Screener
+# FirstLook — Tax-sale Bid Discipline OS
 
-**Product promise:** Tax-sale lists burn half your week. FirstLook solves that half first.
+**Positioning (from market research):**  
+PropStream (~$99) = general data + outreach.  
+FastLien (~$49) = sale list aggregation.  
+**Gap:** auction-day decision + max-bid discipline on the *official* county list.
+
+FirstLook fills that gap.
 
 Live: https://firstlook-taxsale.onrender.com
 
-## What problem each phase solves
+## Why this sells
 
-| Phase | Investor problem | What FirstLook does |
-|-------|------------------|---------------------|
-| **1** | Whole list feels urgent | Ranks “look first” shortlist + red flags + links |
-| **2** | Scores don’t match how *you* buy | Your buy box + max bid + up to 100 parcels + sheet export |
-| **3** | Values feel like guesses | Comps / AVM-grade ranges |
-| **4+** | Miss new sales & title traps | Monitoring + risk flags + deal tracker |
+#1 money leak in tax deeds = **overbidding under adrenaline**.  
+Investors also waste 10–20 hours/county cleaning junk parcels.  
+FirstLook automates: rank → walk-away max bid → county rules → diligence checklist → bid sheet.
 
-## Phase 2 (live in app)
+## Phases
 
-- Buy box editor (saved in browser)
-- Max-bid settings (rehab, holding, profit %)
-- Re-rank without re-geocoding
-- Impact banner: “% noise cut” + hours saved
-- Live research up to **100** parcels
+| Phase | Problem killed | Status |
+|-------|----------------|--------|
+| 1 | Whole list feels urgent | Live |
+| 2 | Scores ≠ how you buy | Live |
+| 3 | Overbid / weak diligence | Live (rules + checklist + bid sheet + valuation confidence) |
+| 4 | Miss next county posting | Live stub (watch registration) |
 
-## Run locally
+## App features
+
+- Demo + live CSV research (≤100)
+- Buy box + max-bid settings (localStorage)
+- Impact: % noise cut / hours saved
+- County rule packs (GA Clayton, FL/TX patterns)
+- Pre-bid diligence checklist
+- Overbid guard
+- Auction **bid sheet** export
+- CSV template download
+- County watch signup
+
+## Run
 
 ```bash
 npm install
 npm run dev
 ```
-
-Open http://localhost:3000/app
-
-## Pitch line
-
-> FirstLook turns a messy tax-sale list into a ranked “look at first” deal sheet — so you chase the right properties, not the whole list.

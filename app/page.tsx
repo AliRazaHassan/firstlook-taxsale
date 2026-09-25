@@ -1,167 +1,116 @@
 import Link from "next/link";
 import styles from "./page.module.css";
 
-const PHASES = [
-  {
-    phase: "Phase 1",
-    problem: "The whole list looks urgent",
-    solves: "Ranks which parcels to chase first",
-    half: "Cuts noise. You stop researching every junk lot.",
-    status: "Live now",
-    live: true,
-  },
-  {
-    phase: "Phase 2",
-    problem: "Scores don’t match how YOU buy",
-    solves: "Your buy box + max bid + bigger lists",
-    half: "Turns FirstLook into your weekly diligence tool.",
-    status: "Live now",
-    live: true,
-  },
-  {
-    phase: "Phase 3",
-    problem: "Values feel like guesses",
-    solves: "Comps / AVM-grade market ranges",
-    half: "You trust the ranking enough for drive-bys.",
-    status: "Next",
-    live: false,
-  },
-  {
-    phase: "Phase 4+",
-    problem: "You still miss new sales & title traps",
-    solves: "Monitoring + risk flags + deal tracker",
-    half: "A permanent tax-sale research employee.",
-    status: "Roadmap",
-    live: false,
-  },
-];
-
 export default function LandingPage() {
   return (
     <main className={styles.page}>
-      <div className={styles.atmosphere} aria-hidden />
-      <div className={styles.gridGlow} aria-hidden />
+      <div className={styles.gridBg} aria-hidden />
 
       <header className={`container ${styles.nav}`}>
         <div className={styles.brand}>FirstLook</div>
         <nav className={styles.navLinks}>
-          <a href="#problem">The problem</a>
+          <a href="#gap">Market gap</a>
           <a href="#phases">Phases</a>
           <a href="#pricing">Pricing</a>
           <Link href="/app" className="btn btn-primary">
-            Open app
+            Open workspace
           </Link>
         </nav>
       </header>
 
       <section className={`container ${styles.hero}`}>
-        <p className={`${styles.kicker} rise`}>Tax-sale AI employee</p>
+        <p className={`${styles.kicker} rise`}>Tax-sale bid discipline OS</p>
         <h1 className={`${styles.logoHero} rise-2`}>FirstLook</h1>
         <p className={`${styles.sub} rise-3`}>
-          Tax-sale lists burn half your week. FirstLook solves that half first — so you only chase
-          the parcels worth your time.
+          PropStream sells data. FastLien sells lists. Investors still overbid.
+          FirstLook is the employee that ranks the official county list and locks a walk-away max bid
+          before auction adrenaline hits.
         </p>
         <div className={`${styles.ctaRow} rise-3`}>
           <Link href="/app" className="btn btn-primary">
-            See it cut a real list
+            Run live demo
           </Link>
-          <a href="#phases" className="btn btn-ghost">
-            How each phase helps you
+          <a href="/api/export" className="btn btn-ghost">
+            Download CSV template
           </a>
         </div>
       </section>
 
-      <section id="problem" className={`container ${styles.section}`}>
-        <h2 className={styles.h2}>Half the job is knowing what to ignore</h2>
-        <div className={styles.painGrid}>
+      <section id="gap" className={`container ${styles.section}`}>
+        <h2 className={styles.h2}>What the market is missing</h2>
+        <div className={styles.gapGrid}>
           <article className="panel">
-            <h3>Before FirstLook</h3>
+            <h3>PropStream · ~$99/mo</h3>
             <p className="muted">
-              100–300 parcels. Random Zillow tabs. Missed red flags. Overbids. Hours gone before you
-              even pick a drive-by.
+              Broad lead machine. Tax delinquency is one filter. Built for outreach — not auction-day
+              bid ceilings on an official sale list.
+            </p>
+          </article>
+          <article className="panel">
+            <h3>FastLien · ~$49/mo</h3>
+            <p className="muted">
+              Aggregates upcoming sale lists. Still leaves ranking, diligence, and overbid discipline
+              mostly on you.
             </p>
           </article>
           <article className={`panel ${styles.featured}`}>
-            <h3>With FirstLook</h3>
+            <h3>FirstLook gap</h3>
             <p className="muted">
-              Ranked “look first” shortlist, red flags, research links, and max bid — in one sheet.
-              That is the half of the problem that blocks every deal.
+              Upload the county’s own list → look-first shortlist → hard max bid → county rule pack →
+              diligence checklist → auction bid sheet. That is the half of the job that loses money.
             </p>
           </article>
         </div>
       </section>
 
       <section id="phases" className={`container ${styles.section}`}>
-        <h2 className={styles.h2}>Each phase solves a real investor problem</h2>
-        <p className={`muted ${styles.phaseIntro}`}>
-          We don’t ship features for vanity. Every phase removes a pain that currently costs you
-          time, money, or a bad bid.
-        </p>
+        <h2 className={styles.h2}>Every phase kills a money problem</h2>
         <div className={styles.phaseList}>
-          {PHASES.map((p) => (
-            <article key={p.phase} className={`panel ${styles.phaseCard}`}>
-              <div className={styles.phaseTop}>
-                <span className={p.live ? "pill pill-mint" : "pill pill-fog"}>{p.status}</span>
-                <strong>{p.phase}</strong>
-              </div>
-              <h3>{p.solves}</h3>
-              <p className={styles.problemLine}>
-                <span>Problem:</span> {p.problem}
-              </p>
-              <p className="muted">{p.half}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className={`container ${styles.section}`}>
-        <div className={`${styles.proof} panel`}>
-          <div>
-            <h2 className={styles.h2}>Already cutting a real county list</h2>
+          <article className="panel">
+            <span className="tag tag-ok">Live</span>
+            <h3>Phase 1 — Stop researching junk</h3>
+            <p className="muted">Ranked look-first list from a real county posting. Cuts ~80% noise.</p>
+          </article>
+          <article className="panel">
+            <span className="tag tag-ok">Live</span>
+            <h3>Phase 2 — Score like you buy</h3>
+            <p className="muted">Your buy box + max-bid settings + up to 100 parcels + sheet export.</p>
+          </article>
+          <article className="panel">
+            <span className="tag tag-ok">Live</span>
+            <h3>Phase 3 — Don’t overbid</h3>
             <p className="muted">
-              Clayton County, GA tax-sale sample: 27 parcels in → 5 look-first picks out. That is
-              ~80% of the list you can stop wasting diligence on.
+              Valuation confidence, county rule packs, diligence checklist, auction bid sheet with
+              walk-away ceiling.
             </p>
-          </div>
-          <div className={styles.stats}>
-            <div>
-              <strong>27</strong>
-              <span>in</span>
-            </div>
-            <div>
-              <strong>5</strong>
-              <span>chase</span>
-            </div>
-            <div>
-              <strong>~80%</strong>
-              <span>noise cut</span>
-            </div>
-          </div>
+          </article>
+          <article className="panel">
+            <span className="tag tag-map">Live stub</span>
+            <h3>Phase 4 — Don’t miss the next sale</h3>
+            <p className="muted">County watch registration → path to automated new-list alerts.</p>
+          </article>
         </div>
       </section>
 
       <section id="pricing" className={`container ${styles.section}`}>
-        <h2 className={styles.h2}>Buy the problem you want solved next</h2>
+        <h2 className={styles.h2}>Price the pain you remove</h2>
         <div className={styles.pricing}>
           <article className="panel">
             <h3>Phase 1 proof</h3>
             <p className={styles.price}>$125</p>
-            <p className="muted">Your list · ranked sheet · look-first shortlist</p>
+            <p className="muted">One county list · ranked sheet</p>
           </article>
           <article className={`panel ${styles.featured}`}>
-            <h3>Phase 2 weekly tool</h3>
+            <h3>Bid Discipline monthly</h3>
             <p className={styles.price}>$149/mo</p>
-            <p className="muted">Your buy box · max bid · bigger lists · Sheets export</p>
+            <p className="muted">Buy box · max bid lock · bid sheets · county watches</p>
           </article>
         </div>
-        <p className={`muted ${styles.phaseIntro}`}>
-          Phase 3+ (comps, monitoring, title risk) unlocks after Phase 2 is saving you every week.
-        </p>
       </section>
 
       <footer className={`container ${styles.footer}`}>
         <div className={styles.brand}>FirstLook</div>
-        <p className="muted">Built to solve half the tax-sale problem first — then the rest.</p>
+        <p className="muted">Built against overbids — not another pretty property database.</p>
       </footer>
     </main>
   );

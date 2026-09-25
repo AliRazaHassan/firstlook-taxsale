@@ -1,41 +1,44 @@
 import type { Metadata } from "next";
-import { Manrope, Syne } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 
-const syne = Syne({
+const display = Space_Grotesk({
   subsets: ["latin"],
-  variable: "--font-syne",
-  weight: ["600", "700", "800"],
+  variable: "--font-space",
+  weight: ["500", "600", "700"],
 });
 
-const manrope = Manrope({
+const body = IBM_Plex_Sans({
   subsets: ["latin"],
-  variable: "--font-manrope",
-  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-plex",
+  weight: ["400", "500", "600", "700"],
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
-  title: "FirstLook — Tax-Sale Deal Screener",
+  title: "FirstLook — Tax-sale bid discipline",
   description:
-    "Upload a county tax-sale list. FirstLook ranks which properties to chase first — with scores, red flags, research links, and max-bid estimates.",
+    "Upload an official county tax-sale list. Get a look-first shortlist, hard max bid, county rules, diligence checklist, and auction bid sheet.",
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover" as const,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${syne.variable} ${manrope.variable}`}>
+    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body
         style={{
-          fontFamily: "var(--font-manrope), var(--font-body)",
-          ["--font-display" as string]: "var(--font-syne), var(--font-display)",
+          fontFamily: "var(--font-plex), var(--font-body), system-ui, sans-serif",
+          ["--font-display" as string]: "var(--font-space), var(--font-display)",
           margin: 0,
-          overflowX: "clip",
-          maxWidth: "100vw",
         }}
       >
         {children}
