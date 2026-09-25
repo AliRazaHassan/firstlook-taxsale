@@ -1,18 +1,19 @@
 :root {
-  --ink: #101820;
-  --ink-soft: #2a3440;
-  --paper: #f3f4f2;
-  --paper-2: #ffffff;
-  --line: #d5d9d3;
-  --line-strong: #b8bfb6;
-  --fog: #5c675f;
-  --accent: #0b5f4b;
-  --map: #1f4e79;
-  --warn: #9a6700;
-  --danger: #a12828;
-  --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-body: "IBM Plex Sans", system-ui, sans-serif;
-  --radius: 4px;
+  --ink: #12181c;
+  --ink-soft: #2c3640;
+  --paper: #eef1ec;
+  --paper-2: #fbfbf8;
+  --line: #c8d0c4;
+  --line-strong: #aeb6ac;
+  --fog: #5a645c;
+  --accent: #0a5746;
+  --map: #1c4a72;
+  --warn: #8a5b00;
+  --danger: #9b2c2c;
+  --font-display: var(--font-space), "Space Grotesk", system-ui, sans-serif;
+  --font-body: var(--font-plex), "IBM Plex Sans", system-ui, sans-serif;
+  --radius: 3px;
+  --shadow-soft: 0 1px 0 rgba(16, 24, 32, 0.04), 0 10px 28px rgba(16, 24, 32, 0.05);
 }
 
 * {
@@ -262,4 +263,170 @@ table.data tr.look-first td {
 
 .rise-3 {
   animation: rise 0.85s ease 0.14s both;
+}
+
+@keyframes barGrow {
+  from {
+    transform: scaleX(0.08);
+    opacity: 0.35;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseLive {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes dashMove {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+.chart-card {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.85rem 0.95rem 0.55rem;
+  box-shadow: var(--shadow-soft);
+  min-width: 0;
+}
+
+.chart-card.compact {
+  padding-bottom: 0.35rem;
+}
+
+.chart-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.chart-head strong {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  letter-spacing: -0.02em;
+}
+
+.chart-sub {
+  font-size: 0.75rem;
+}
+
+.chart-caption {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+}
+
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.chart-label {
+  font-size: 12px;
+  fill: #2c3640;
+  font-weight: 600;
+}
+
+.chart-bar-grow {
+  transform-origin: left center;
+  animation: barGrow 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.chart-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.chart-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulseLive 1.4s ease infinite;
+}
+
+.chart-live.danger {
+  color: var(--danger);
+}
+
+.flow-diagram {
+  position: relative;
+  margin: 1.5rem 0 0;
+  padding: 1.1rem 0 0.25rem;
+}
+
+.flow-lines {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2.35rem;
+  width: 100%;
+  height: 40px;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.flow-dash {
+  animation: dashMove 1.8s linear infinite;
+}
+
+.flow-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  position: relative;
+  z-index: 1;
+}
+
+.flow-steps li {
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.9rem 0.85rem;
+  display: grid;
+  gap: 0.25rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.flow-steps strong {
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+
+.flow-n {
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+@media (max-width: 800px) {
+  .flow-steps {
+    grid-template-columns: 1fr 1fr;
+  }
+  .flow-lines {
+    display: none;
+  }
 }

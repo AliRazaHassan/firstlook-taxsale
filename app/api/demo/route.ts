@@ -10,7 +10,7 @@ export async function GET() {
 
   return NextResponse.json({
     mode: "demo",
-    phase: 2,
+    phase: 3,
     county: "Clayton County, GA",
     saleDate: "07/07/2026",
     total: withBids.length,

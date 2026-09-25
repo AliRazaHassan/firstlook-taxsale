@@ -34,15 +34,7 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
-      <body
-        style={{
-          fontFamily: "var(--font-plex), var(--font-body), system-ui, sans-serif",
-          ["--font-display" as string]: "var(--font-space), var(--font-display)",
-          margin: 0,
-        }}
-      >
-        {children}
-      </body>
+      <body style={{ margin: 0 }}>{children}</body>
     </html>
   );
 }

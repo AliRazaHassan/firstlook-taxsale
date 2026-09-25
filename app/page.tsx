@@ -1,10 +1,14 @@
 import Link from "next/link";
+import { SparkBars, WorkflowDiagram } from "@/components/Charts";
 import styles from "./page.module.css";
+
+const sampleNoiseCut = [27, 24, 19, 14, 11, 8, 6, 5];
 
 export default function LandingPage() {
   return (
     <main className={styles.page}>
       <div className={styles.gridBg} aria-hidden />
+      <div className={styles.wash} aria-hidden />
 
       <header className={`container ${styles.nav}`}>
         <div className={styles.brand}>FirstLook</div>
@@ -23,8 +27,8 @@ export default function LandingPage() {
         <h1 className={`${styles.logoHero} rise-2`}>FirstLook</h1>
         <p className={`${styles.sub} rise-3`}>
           PropStream sells data. FastLien sells lists. Investors still overbid.
-          FirstLook is the employee that ranks the official county list and locks a walk-away max bid
-          before auction adrenaline hits.
+          FirstLook ranks the official county list and locks a walk-away max bid before auction
+          adrenaline hits.
         </p>
         <div className={`${styles.ctaRow} rise-3`}>
           <Link href="/app" className="btn btn-primary">
@@ -34,6 +38,17 @@ export default function LandingPage() {
             Download CSV template
           </a>
         </div>
+
+        <div className={`${styles.heroViz} rise-3`}>
+          <WorkflowDiagram />
+          <div className={styles.heroChart}>
+            <SparkBars values={sampleNoiseCut} label="Noise cut · demo shape" />
+            <p className="muted">
+              Clayton sample: 27 parcels in → 5 look-first. The chart is the product pitch —
+              time you stop wasting.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section id="gap" className={`container ${styles.section}`}>
@@ -42,22 +57,22 @@ export default function LandingPage() {
           <article className="panel">
             <h3>PropStream · ~$99/mo</h3>
             <p className="muted">
-              Broad lead machine. Tax delinquency is one filter. Built for outreach — not auction-day
-              bid ceilings on an official sale list.
+              Broad lead machine. Tax delinquency is one filter. Built for outreach — not
+              auction-day bid ceilings on an official sale list.
             </p>
           </article>
           <article className="panel">
             <h3>FastLien · ~$49/mo</h3>
             <p className="muted">
-              Aggregates upcoming sale lists. Still leaves ranking, diligence, and overbid discipline
-              mostly on you.
+              Aggregates upcoming sale lists. Still leaves ranking, diligence, and overbid
+              discipline mostly on you.
             </p>
           </article>
           <article className={`panel ${styles.featured}`}>
             <h3>FirstLook gap</h3>
             <p className="muted">
-              Upload the county’s own list → look-first shortlist → hard max bid → county rule pack →
-              diligence checklist → auction bid sheet. That is the half of the job that loses money.
+              Upload the county’s own list → look-first shortlist → hard max bid → county rule pack
+              → diligence checklist → auction bid sheet.
             </p>
           </article>
         </div>
@@ -80,8 +95,7 @@ export default function LandingPage() {
             <span className="tag tag-ok">Live</span>
             <h3>Phase 3 — Don’t overbid</h3>
             <p className="muted">
-              Valuation confidence, county rule packs, diligence checklist, auction bid sheet with
-              walk-away ceiling.
+              Live funnel charts, valuation confidence, county rules, checklist, auction bid sheet.
             </p>
           </article>
           <article className="panel">

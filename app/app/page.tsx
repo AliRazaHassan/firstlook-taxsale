@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { BidGauge, FunnelChart, ScoreBars, SparkBars, WorkflowDiagram } from "@/components/Charts";
 import { DEFAULT_BUY_BOX, type BuyBox, type ScoredProperty } from "@/lib/engine";
 import { money, pct } from "@/lib/format";
 import styles from "./app.module.css";
@@ -102,6 +103,7 @@ export default function AppPage() {
   const [watchCounty, setWatchCounty] = useState("Clayton");
   const [watchState, setWatchState] = useState("GA");
   const [watchMsg, setWatchMsg] = useState<string | null>(null);
+  const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
   const bidPayload = useMemo(
     () => ({
@@ -171,6 +173,24 @@ export default function AppPage() {
     };
   }, [selected]);
 
+  useEffect(() => {
+    if (!selected?.parcel_id) {
+      setCheckedItems({});
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(`firstlook-check-${selected.parcel_id}`);
+      setCheckedItems(raw ? (JSON.parse(raw) as Record<string, boolean>) : {});
+    } catch {
+      setCheckedItems({});
+    }
+  }, [selected?.parcel_id]);
+
+  useEffect(() => {
+    if (!selected?.parcel_id) return;
+    localStorage.setItem(`firstlook-check-${selected.parcel_id}`, JSON.stringify(checkedItems));
+  }, [checkedItems, selected?.parcel_id]);
+
   const filtered = useMemo(() => {
     if (!data) return [];
     if (filter === "look") return data.properties.filter((p) => p.lookAtFirst);
@@ -179,6 +199,14 @@ export default function AppPage() {
   }, [data, filter]);
 
   const impact = data?.impact;
+
+  const scoreSpark = useMemo(() => {
+    if (!data?.properties.length) return [];
+    return [...data.properties]
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 12)
+      .map((p) => p.score);
+  }, [data]);
 
   async function runLiveResearch() {
     if (!csvText.trim()) {
@@ -304,11 +332,26 @@ export default function AppPage() {
       setError(json.error ?? "Max bid failed");
       return;
     }
-    setSelected({
+    const next: ScoredProperty = {
       ...property,
       maxBid: json.maxBid,
       projectedProfitAtMaxBid: json.projectedProfit,
-    });
+    };
+    setSelected(next);
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            properties: prev.properties.map((p) =>
+              p.parcel_id === property.parcel_id ? next : p,
+            ),
+          }
+        : prev,
+    );
+  }
+
+  function toggleCheck(id: string) {
+    setCheckedItems((prev) => ({ ...prev, [id]: !prev[id] }));
   }
 
   return (
@@ -318,7 +361,7 @@ export default function AppPage() {
           <Link href="/" className={styles.brand}>
             FirstLook
           </Link>
-          <span className="pill pill-mint">Phase 2</span>
+          <span className="pill pill-mint">Bid discipline</span>
         </div>
         <div className={styles.actions}>
           <a className="btn btn-ghost" href="/api/export">
@@ -364,16 +407,16 @@ export default function AppPage() {
           {sideTab === "research" ? (
             <>
               <h2>Run research</h2>
-              <p className="muted">Upload your county tax-sale CSV (up to 100 parcels in Phase 2).</p>
+              <p className="muted">Drop the county&apos;s own list — up to 100 parcels per run.</p>
 
-              <div className="field">
-                <label>CSV file</label>
+              <label className={styles.dropZone}>
+                <span>Drop CSV here or browse</span>
                 <input
                   type="file"
                   accept=".csv,text/csv"
                   onChange={(e) => void onFile(e.target.files?.[0] ?? null)}
                 />
-              </div>
+              </label>
 
               <div className="field">
                 <label>Or paste CSV</label>
@@ -554,10 +597,10 @@ export default function AppPage() {
           {error ? <p className={styles.error}>{error}</p> : null}
 
           <div className={styles.hint}>
-            <strong>Phase 2 solves</strong>
+            <strong>What this kills</strong>
             <span className="muted">
-              Your rules + your max bid + ranked shortlist. Export to Google Sheets and diligence
-              only the winners.
+              Blind list research, adrenaline overbids, and missing county rules before you raise a
+              paddle.
             </span>
           </div>
         </aside>
@@ -594,6 +637,26 @@ export default function AppPage() {
                   <strong className="mono">~{impact?.hoursSaved ?? "—"}</strong>
                 </div>
               </div>
+
+              {impact ? (
+                <div className={styles.chartGrid}>
+                  <FunnelChart
+                    total={impact.total}
+                    lookFirst={impact.lookFirst}
+                    skipped={impact.skipped}
+                    flagged={impact.flagged}
+                  />
+                  <ScoreBars properties={data.properties} />
+                  {selected ? (
+                    <BidGauge
+                      cryOut={selected.cry_out_bid}
+                      maxBid={selected.maxBid}
+                      address={selected.cleanAddress}
+                    />
+                  ) : null}
+                  {scoreSpark.length ? <SparkBars values={scoreSpark} label="Rank pulse" /> : null}
+                </div>
+              ) : null}
 
               <div className={styles.filterRow}>
                 {(
@@ -663,10 +726,25 @@ export default function AppPage() {
             </>
           ) : (
             <div className={`panel ${styles.empty}`}>
-              <h2>Load the demo to see how much list noise FirstLook removes</h2>
-              <button className="btn btn-primary" onClick={() => void loadDemo()} disabled={loading}>
-                Load Clayton demo
-              </button>
+              {loading ? (
+                <>
+                  <p className={styles.loadingPulse}>
+                    <span className="chart-live">
+                      <i />
+                    </span>{" "}
+                    Scoring Clayton parcels…
+                  </p>
+                  <WorkflowDiagram />
+                </>
+              ) : (
+                <>
+                  <h2>See the cut before you chase a single drive-by</h2>
+                  <WorkflowDiagram />
+                  <button className="btn btn-primary" onClick={() => void loadDemo()}>
+                    Load Clayton demo
+                  </button>
+                </>
+              )}
             </div>
           )}
         </section>
@@ -726,12 +804,24 @@ export default function AppPage() {
                   <ul className={styles.checkList}>
                     {diligence.checklist.map((item) => (
                       <li key={item.id}>
-                        <strong>[{item.severity}]</strong> {item.label}
-                        {item.autoHint ? (
-                          <div className="muted" style={{ fontSize: "0.82rem" }}>
-                            {item.autoHint}
-                          </div>
-                        ) : null}
+                        <label className={styles.checkItem}>
+                          <input
+                            type="checkbox"
+                            checked={Boolean(checkedItems[item.id])}
+                            onChange={() => toggleCheck(item.id)}
+                          />
+                          <span>
+                            <em className={item.severity === "required" ? styles.req : undefined}>
+                              {item.severity}
+                            </em>{" "}
+                            {item.label}
+                            {item.autoHint ? (
+                              <div className="muted" style={{ fontSize: "0.82rem" }}>
+                                {item.autoHint}
+                              </div>
+                            ) : null}
+                          </span>
+                        </label>
                       </li>
                     ))}
                   </ul>
