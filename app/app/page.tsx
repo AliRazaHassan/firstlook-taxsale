@@ -6,6 +6,7 @@ import { BidGauge, FunnelChart, ScoreBars, SparkBars, WorkflowDiagram } from "@/
 import {
   DEFAULT_BUY_BOX,
   calculateMaxBid,
+  calculateDealTruthScore,
   impactStats,
   normalizeBuyBox,
   rescoreExisting,
@@ -440,11 +441,12 @@ export default function AppPage() {
       desiredProfit: Math.round(arv * (bidDefaults.desiredProfitPct / 100)),
       cryOutBid: property.cry_out_bid,
     });
-    const next: ScoredProperty = {
+    const bidUpdated: ScoredProperty = {
       ...property,
       maxBid: json.maxBid,
       projectedProfitAtMaxBid: json.projectedProfit,
     };
+    const next: ScoredProperty = { ...bidUpdated, dealTruth: calculateDealTruthScore(bidUpdated) };
     setSelected(next);
     setData((prev) =>
       prev
@@ -846,6 +848,7 @@ export default function AppPage() {
                     <tr>
                       <th>Rank</th>
                       <th>Score</th>
+                      <th>Truth</th>
                       <th>Address</th>
                       <th>Cry-out</th>
                       <th>FMV</th>
@@ -866,6 +869,7 @@ export default function AppPage() {
                           {p.lookAtFirst ? <div className="pill pill-mint">First</div> : null}
                         </td>
                         <td className="mono">{p.score}</td>
+                        <td className="mono">{p.dealTruth?.overall ?? "—"}</td>
                         <td>
                           <div>{p.cleanAddress}</div>
                           <div className="muted" style={{ fontSize: "0.8rem" }}>
@@ -924,6 +928,18 @@ export default function AppPage() {
                 <h2>{selected.cleanAddress}</h2>
                 <p className="muted">{selected.matchedAddress ?? selected.owner}</p>
               </div>
+
+              {selected.dealTruth ? (
+                <div className={styles.rulesBox}>
+                  <strong>Deal Truth {selected.dealTruth.overall}/100 · {selected.dealTruth.confidence} confidence</strong>
+                  <div className="muted" style={{ marginTop: "0.35rem" }}>
+                    Opportunity {selected.dealTruth.opportunity} · Valuation {selected.dealTruth.valuation} · Title/legal {selected.dealTruth.titleLegal} · Auction safety {selected.dealTruth.auctionSafety} · Liquidity {selected.dealTruth.liquidity}
+                  </div>
+                  {selected.dealTruth.reasons.length ? (
+                    <div style={{ marginTop: "0.35rem" }}>{selected.dealTruth.reasons.join(" ")}</div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className={styles.metricGrid}>
                 <div>
