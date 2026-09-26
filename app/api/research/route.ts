@@ -12,6 +12,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const MAX_PROPERTIES = 100;
+const MAX_CSV_BYTES = 1_000_000;
 
 export async function POST(request: Request) {
   try {
@@ -28,6 +29,9 @@ export async function POST(request: Request) {
 
     if (!body.csv?.trim()) {
       return NextResponse.json({ error: "CSV text is required" }, { status: 400 });
+    }
+    if (Buffer.byteLength(body.csv, "utf8") > MAX_CSV_BYTES) {
+      return NextResponse.json({ error: "CSV payload exceeds the 1 MB request limit." }, { status: 413 });
     }
 
     const properties = parseTaxSaleCsv(body.csv);
