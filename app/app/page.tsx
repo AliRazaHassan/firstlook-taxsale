@@ -122,6 +122,10 @@ export default function AppPage() {
   const [watchState, setWatchState] = useState("GA");
   const [watchMsg, setWatchMsg] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const [conciergeOpen, setConciergeOpen] = useState(false);
+  const [conciergeQuestion, setConciergeQuestion] = useState("");
+  const [conciergeAnswer, setConciergeAnswer] = useState("Select a property and ask me why it scored this way, what the max bid means, or what to verify next.");
+  const [conciergeLoading, setConciergeLoading] = useState(false);
 
   const buyBoxRef = useRef(buyBox);
   const bidRef = useRef(bidDefaults);
@@ -459,6 +463,31 @@ export default function AppPage() {
         : prev,
     );
     setStatus(`Max bid locked at ${money(json.maxBid)} for ${property.cleanAddress}`);
+  }
+
+  async function askConcierge(question = conciergeQuestion) {
+    if (!question.trim()) return;
+    setConciergeLoading(true);
+    try {
+      const res = await fetch("/api/concierge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          property: selected ?? undefined,
+          diligence,
+          portfolio: { total: data?.total, lookFirstCount: data?.lookFirstCount },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Concierge failed");
+      setConciergeAnswer(json.answer);
+      setConciergeQuestion("");
+    } catch (err) {
+      setConciergeAnswer(err instanceof Error ? err.message : "Concierge is unavailable.");
+    } finally {
+      setConciergeLoading(false);
+    }
   }
 
   function toggleCheck(id: string) {
@@ -1071,6 +1100,27 @@ export default function AppPage() {
           )}
         </aside>
       </div>
+      <button className={styles.conciergeFab} onClick={() => setConciergeOpen((v) => !v)} aria-expanded={conciergeOpen}>
+        AI Concierge
+      </button>
+      {conciergeOpen ? (
+        <section className={styles.conciergePanel} aria-label="FirstLook AI Concierge">
+          <div className={styles.conciergeHead}>
+            <div><strong>FirstLook Concierge</strong><div className="muted">Explains the evidence. Never invents missing facts.</div></div>
+            <button className="btn btn-ghost" onClick={() => setConciergeOpen(false)}>×</button>
+          </div>
+          <div className={styles.conciergeAnswer}>{conciergeLoading ? "Reviewing this deal…" : conciergeAnswer}</div>
+          <div className={styles.conciergeQuick}>
+            {["Why this score?", "Explain max bid", "What are the risks?", "What should I verify next?"].map((q) => (
+              <button key={q} className="btn btn-ghost" onClick={() => void askConcierge(q)} disabled={conciergeLoading}>{q}</button>
+            ))}
+          </div>
+          <div className={styles.conciergeInput}>
+            <input value={conciergeQuestion} onChange={(e) => setConciergeQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void askConcierge(); }} placeholder="Ask about this property or result…" />
+            <button className="btn btn-primary" onClick={() => void askConcierge()} disabled={conciergeLoading || !conciergeQuestion.trim()}>Ask</button>
+          </div>
+        </section>
+      ) : null}
     </main>
   );
 }
