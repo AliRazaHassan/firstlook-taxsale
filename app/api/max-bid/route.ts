@@ -16,6 +16,11 @@ const MaxBidSchema = z.object({
   desiredProfit: Money.optional(),
   contingency: Money.optional(),
   cryOutBid: Money.optional(),
+  titleLegal: Money.default(0),
+  survivingLiens: Money.default(0),
+  evictionPossession: Money.default(0),
+  auctionFees: Money.default(0),
+  redemptionCarry: Money.default(0),
 });
 
 export async function POST(request: Request) {
