@@ -132,5 +132,10 @@ export type MaxBidResult = {
     closingSell: number;
     desiredProfit: number;
     contingency: number;
+    titleLegal: number;
+    survivingLiens: number;
+    evictionPossession: number;
+    auctionFees: number;
+    redemptionCarry: number;
   };
 };
