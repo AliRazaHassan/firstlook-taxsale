@@ -2,6 +2,7 @@ import { enrichWithAcs, geocodeProperty } from "./census";
 import { cleanStreetAddress } from "./ingest";
 import { buildResearchLinks } from "./links";
 import { attachMaxBids } from "./maxBid";
+import { attachDealTruthScores } from "./truthScore";
 import {
   assignRanks,
   buildNotes,
@@ -100,5 +101,5 @@ export async function researchProperties(
   }
 
   const ranked = assignRanks(researched);
-  return attachMaxBids(ranked);
+  return attachDealTruthScores(attachMaxBids(ranked));
 }
