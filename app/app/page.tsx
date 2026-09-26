@@ -41,6 +41,8 @@ type ResearchResponse = {
 type FilterMode = "all" | "look" | "flagged" | "clean" | "headroom" | "overbid";
 type SortMode = "rank" | "score" | "maxBid" | "cryOut" | "spread";
 type SideTab = "research" | "buybox" | "bid" | "watch";
+type ConciergeMessage = { role: "user" | "assistant"; text: string };
+type AiContextMenu = { x: number; y: number; label: string; value: string } | null;
 
 type DiligencePayload = {
   rules: {
@@ -124,8 +126,12 @@ export default function AppPage() {
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [conciergeOpen, setConciergeOpen] = useState(false);
   const [conciergeQuestion, setConciergeQuestion] = useState("");
-  const [conciergeAnswer, setConciergeAnswer] = useState("Select a property and ask me why it scored this way, what the max bid means, or what to verify next.");
+  const [conciergeMessages, setConciergeMessages] = useState<ConciergeMessage[]>([
+    { role: "assistant", text: "Select a property, then ask me about any score, bid, risk or diligence result. Tip: right-click a stat and choose Ask AI about this." },
+  ]);
   const [conciergeLoading, setConciergeLoading] = useState(false);
+  const [aiContextMenu, setAiContextMenu] = useState<AiContextMenu>(null);
+  const conciergeScrollRef = useRef<HTMLDivElement | null>(null);
 
   const buyBoxRef = useRef(buyBox);
   const bidRef = useRef(bidDefaults);
@@ -465,8 +471,17 @@ export default function AppPage() {
     setStatus(`Max bid locked at ${money(json.maxBid)} for ${property.cleanAddress}`);
   }
 
+  function openAiContext(e: React.MouseEvent, label: string, value: string) {
+    e.preventDefault();
+    setAiContextMenu({ x: Math.min(e.clientX, window.innerWidth - 230), y: Math.min(e.clientY, window.innerHeight - 100), label, value });
+  }
+
   async function askConcierge(question = conciergeQuestion) {
     if (!question.trim()) return;
+    setConciergeOpen(true);
+    setAiContextMenu(null);
+    setConciergeMessages((m) => [...m, { role: "user", text: question }]);
+    setConciergeQuestion("");
     setConciergeLoading(true);
     try {
       const res = await fetch("/api/concierge", {
@@ -481,14 +496,24 @@ export default function AppPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Concierge failed");
-      setConciergeAnswer(json.answer);
-      setConciergeQuestion("");
+      setConciergeMessages((m) => [...m, { role: "assistant", text: json.answer }]);
     } catch (err) {
-      setConciergeAnswer(err instanceof Error ? err.message : "Concierge is unavailable.");
+      setConciergeMessages((m) => [...m, { role: "assistant", text: err instanceof Error ? err.message : "Concierge is unavailable." }]);
     } finally {
       setConciergeLoading(false);
     }
   }
+
+  useEffect(() => {
+    conciergeScrollRef.current?.scrollTo({ top: conciergeScrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [conciergeMessages, conciergeLoading]);
+
+  useEffect(() => {
+    const close = () => setAiContextMenu(null);
+    window.addEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    return () => { window.removeEventListener("click", close); window.removeEventListener("scroll", close, true); };
+  }, []);
 
   function toggleCheck(id: string) {
     setCheckedItems((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -776,11 +801,11 @@ export default function AppPage() {
               ) : null}
 
               <div className={styles.summary}>
-                <div className="panel">
+                <div className="panel" onContextMenu={(e) => openAiContext(e, "Parcels in", String(data.total))} title="Right-click to ask AI">
                   <span className="muted">Parcels in</span>
                   <strong className="mono">{data.total}</strong>
                 </div>
-                <div className="panel">
+                <div className="panel" onContextMenu={(e) => openAiContext(e, "Look first", String(data.lookFirstCount))} title="Right-click to ask AI">
                   <span className="muted">Look first</span>
                   <strong className="mono">{data.lookFirstCount}</strong>
                 </div>
@@ -959,7 +984,7 @@ export default function AppPage() {
               </div>
 
               {selected.dealTruth ? (
-                <div className={styles.rulesBox}>
+                <div className={styles.rulesBox} onContextMenu={(e) => openAiContext(e, "Deal Truth score", `${selected.dealTruth?.overall ?? "unknown"}/100`)} title="Right-click to ask AI">
                   <strong>Deal Truth {selected.dealTruth.overall}/100 · {selected.dealTruth.confidence} confidence</strong>
                   <div className="muted" style={{ marginTop: "0.35rem" }}>
                     Opportunity {selected.dealTruth.opportunity} · Valuation {selected.dealTruth.valuation} · Title/legal {selected.dealTruth.titleLegal} · Auction safety {selected.dealTruth.auctionSafety} · Liquidity {selected.dealTruth.liquidity}
@@ -971,11 +996,11 @@ export default function AppPage() {
               ) : null}
 
               <div className={styles.metricGrid}>
-                <div>
+                <div onContextMenu={(e) => openAiContext(e, "Property score", String(selected.score))} title="Right-click to ask AI">
                   <span>Score</span>
                   <strong className="mono">{selected.score}</strong>
                 </div>
-                <div>
+                <div onContextMenu={(e) => openAiContext(e, "Equity spread", pct(selected.equitySpread))} title="Right-click to ask AI">
                   <span>Spread</span>
                   <strong className="mono">{pct(selected.equitySpread)}</strong>
                 </div>
@@ -1042,15 +1067,15 @@ export default function AppPage() {
               </button>
 
               <div className={styles.bidBox}>
-                <div>
+                <div onContextMenu={(e) => openAiContext(e, "Max bid", money(selected.maxBid))} title="Right-click to ask AI">
                   <span className="muted">Max bid</span>
                   <strong className="mono">{money(selected.maxBid)}</strong>
                 </div>
-                <div>
+                <div onContextMenu={(e) => openAiContext(e, "Projected profit", money(selected.projectedProfitAtMaxBid))} title="Right-click to ask AI">
                   <span className="muted">Projected profit</span>
                   <strong className="mono">{money(selected.projectedProfitAtMaxBid)}</strong>
                 </div>
-                <div>
+                <div onContextMenu={(e) => openAiContext(e, "Cry-out bid", money(selected.cry_out_bid))} title="Right-click to ask AI">
                   <span className="muted">Cry-out bid</span>
                   <strong className="mono">{money(selected.cry_out_bid)}</strong>
                 </div>
@@ -1103,20 +1128,35 @@ export default function AppPage() {
       <button className={styles.conciergeFab} onClick={() => setConciergeOpen((v) => !v)} aria-expanded={conciergeOpen}>
         AI Concierge
       </button>
+      {aiContextMenu ? (
+        <div className={styles.aiContextMenu} style={{ left: aiContextMenu.x, top: aiContextMenu.y }} onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => void askConcierge(`Explain this metric in context: ${aiContextMenu.label} = ${aiContextMenu.value}. Why does it matter for this deal?`)}>
+            ✦ Ask AI about this
+          </button>
+        </div>
+      ) : null}
       {conciergeOpen ? (
         <section className={styles.conciergePanel} aria-label="FirstLook AI Concierge">
           <div className={styles.conciergeHead}>
-            <div><strong>FirstLook Concierge</strong><div className="muted">Explains the evidence. Never invents missing facts.</div></div>
+            <div><strong>✦ FirstLook AI Concierge</strong><div className="muted">{selected ? selected.cleanAddress : "Portfolio assistant"} · grounded in current results</div></div>
             <button className="btn btn-ghost" onClick={() => setConciergeOpen(false)}>×</button>
           </div>
-          <div className={styles.conciergeAnswer}>{conciergeLoading ? "Reviewing this deal…" : conciergeAnswer}</div>
+          <div className={styles.conciergeMessages} ref={conciergeScrollRef}>
+            {conciergeMessages.map((m, i) => (
+              <div key={i} className={m.role === "user" ? styles.userMessage : styles.aiMessage}>
+                <small>{m.role === "user" ? "You" : "AI Concierge"}</small>
+                <div>{m.text}</div>
+              </div>
+            ))}
+            {conciergeLoading ? <div className={styles.aiMessage}><small>AI Concierge</small><div>Reviewing the evidence…</div></div> : null}
+          </div>
           <div className={styles.conciergeQuick}>
             {["Why this score?", "Explain max bid", "What are the risks?", "What should I verify next?"].map((q) => (
               <button key={q} className="btn btn-ghost" onClick={() => void askConcierge(q)} disabled={conciergeLoading}>{q}</button>
             ))}
           </div>
           <div className={styles.conciergeInput}>
-            <input value={conciergeQuestion} onChange={(e) => setConciergeQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void askConcierge(); }} placeholder="Ask about this property or result…" />
+            <textarea rows={2} value={conciergeQuestion} onChange={(e) => setConciergeQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askConcierge(); } }} placeholder="Ask anything about these results…" />
             <button className="btn btn-primary" onClick={() => void askConcierge()} disabled={conciergeLoading || !conciergeQuestion.trim()}>Ask</button>
           </div>
         </section>
