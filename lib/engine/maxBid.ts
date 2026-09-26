@@ -7,6 +7,11 @@ export type MaxBidDefaults = {
   closingBuyPct?: number;
   closingSellPct?: number;
   desiredProfitPct?: number;
+  titleLegal?: number;
+  survivingLiens?: number;
+  evictionPossession?: number;
+  auctionFees?: number;
+  redemptionCarry?: number;
 };
 
 /** Classic investor MAO: ARV minus all costs and desired profit. */
@@ -19,19 +24,25 @@ export function calculateMaxBid(input: MaxBidInput): MaxBidResult {
   const closingSellPct = input.closingSellPct ?? 0.06;
   const desiredProfit = input.desiredProfit ?? Math.round(arv * 0.15);
   const contingency = input.contingency ?? Math.round(rehab * 0.1);
+  const titleLegal = Math.max(0, input.titleLegal ?? 0);
+  const survivingLiens = Math.max(0, input.survivingLiens ?? 0);
+  const evictionPossession = Math.max(0, input.evictionPossession ?? 0);
+  const auctionFees = Math.max(0, input.auctionFees ?? 0);
+  const redemptionCarry = Math.max(0, input.redemptionCarry ?? 0);
+  const riskCosts = titleLegal + survivingLiens + evictionPossession + auctionFees + redemptionCarry;
 
   const holding = holdingMonths * monthlyHolding;
   let provisional = arv * 0.7;
   for (let i = 0; i < 3; i++) {
     const closingBuy = provisional * closingBuyPct;
     const closingSell = arv * closingSellPct;
-    provisional = arv - rehab - holding - closingBuy - closingSell - desiredProfit - contingency;
+    provisional = arv - rehab - holding - closingBuy - closingSell - desiredProfit - contingency - riskCosts;
   }
 
   const maxBid = Math.max(0, Math.round(provisional));
   const closingBuy = Math.round(maxBid * closingBuyPct);
   const closingSell = Math.round(arv * closingSellPct);
-  const totalCosts = rehab + holding + closingBuy + closingSell + contingency;
+  const totalCosts = rehab + holding + closingBuy + closingSell + contingency + riskCosts;
   const projectedProfit = Math.round(arv - maxBid - totalCosts);
   const equityVsCryOut =
     input.cryOutBid != null ? Math.round(maxBid - input.cryOutBid) : null;
@@ -49,6 +60,11 @@ export function calculateMaxBid(input: MaxBidInput): MaxBidResult {
       closingSell,
       desiredProfit,
       contingency,
+      titleLegal,
+      survivingLiens,
+      evictionPossession,
+      auctionFees,
+      redemptionCarry,
     },
   };
 }
@@ -77,6 +93,11 @@ export function attachMaxBids<
       closingSellPct: defaults.closingSellPct,
       desiredProfit: Math.round(arv * desiredProfitPct),
       cryOutBid: row.cry_out_bid,
+      titleLegal: defaults.titleLegal,
+      survivingLiens: defaults.survivingLiens,
+      evictionPossession: defaults.evictionPossession,
+      auctionFees: defaults.auctionFees,
+      redemptionCarry: defaults.redemptionCarry,
     });
     return {
       ...row,
