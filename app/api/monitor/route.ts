@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { databaseConfigured, ensureSchema, getDb } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -9,21 +10,26 @@ const WatchSchema = z.object({
   state: z.string().trim().min(2).max(30),
 });
 
-/**
- * Phase 4 interest endpoint.
- * IMPORTANT: this does not pretend to persist or send alerts until a database + worker are configured.
- */
 export async function POST(request: Request) {
   try {
     const row = WatchSchema.parse(await request.json());
-    return NextResponse.json(
-      {
-        ok: false,
-        status: "pending-infrastructure",
-        message: `County Watch for ${row.county}, ${row.state.toUpperCase()} is not active yet. Persistent storage and the alert worker must be configured before registrations can be accepted.`,
-      },
-      { status: 503 },
+    if (!databaseConfigured()) {
+      return NextResponse.json({ ok: false, status: "database-not-configured", message: "County Watch needs DATABASE_URL before registrations can be persisted." }, { status: 503 });
+    }
+    await ensureSchema();
+    const db = getDb();
+    await db.query(
+      `INSERT INTO county_watches (email, county, state, active)
+       VALUES ($1, $2, $3, TRUE)
+       ON CONFLICT (email, county, state)
+       DO UPDATE SET active=TRUE, updated_at=NOW()`,
+      [row.email.toLowerCase(), row.county, row.state.toUpperCase()],
     );
+    return NextResponse.json({
+      ok: true,
+      status: "registered",
+      message: `Watch saved for ${row.county}, ${row.state.toUpperCase()}. Alert delivery becomes active when the county adapter/worker is configured.`,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Invalid watch request";
     return NextResponse.json({ error: message }, { status: 400 });
