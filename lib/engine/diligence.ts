@@ -87,7 +87,7 @@ export function buildDiligenceChecklist(
   return items;
 }
 
-export type ValuationConfidence = "high" | "medium" | "low";
+export type ValuationConfidence = "medium" | "low";
 
 export function valuationConfidence(property: ScoredProperty): {
   level: ValuationConfidence;
@@ -96,9 +96,9 @@ export function valuationConfidence(property: ScoredProperty): {
 } {
   if (property.geocodeStatus === "matched" && property.tractMedianHomeValue != null) {
     return {
-      level: "high",
-      label: "Higher confidence",
-      detail: "Assessed FMV blended with ACS neighborhood median (not MLS comps yet).",
+      level: "medium",
+      label: "Medium confidence",
+      detail: "Assessed FMV is blended with an ACS tract median. This is neighborhood context, not property-level comparable sales; verify comps before bidding.",
     };
   }
   if (property.assessed_fmv > 0) {

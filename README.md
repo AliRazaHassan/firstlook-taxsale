@@ -22,7 +22,7 @@ FirstLook automates: rank → walk-away max bid → county rules → diligence c
 | 1 | Whole list feels urgent | Live |
 | 2 | Scores ≠ how you buy | Live |
 | 3 | Overbid / weak diligence | Live (rules + checklist + bid sheet + valuation confidence) |
-| 4 | Miss next county posting | Live stub (watch registration) |
+| 4 | Miss next county posting | Persistence-ready; alert worker/adapters pending |
 
 ## App features
 
@@ -34,7 +34,10 @@ FirstLook automates: rank → walk-away max bid → county rules → diligence c
 - Overbid guard
 - Auction **bid sheet** export
 - CSV template download
-- County watch signup
+- County watch persistence when `DATABASE_URL` is configured
+- Research-session persistence API
+- Fail-safe jurisdiction rules: unknown counties never inherit another state's rule pack
+- Evidence-aware valuation confidence (ACS tract data is not treated as property comps)
 
 ## Run
 
@@ -42,3 +45,11 @@ FirstLook automates: rank → walk-away max bid → county rules → diligence c
 npm install
 npm run dev
 ```
+
+## Production configuration
+
+Set `DATABASE_URL` to a PostgreSQL database (Render Postgres or compatible). The app creates its minimal watch/session tables on first use. County-watch registration is persisted only when the database is configured. Actual outbound alerts intentionally remain disabled until a county ingestion worker and delivery provider are configured; the UI/API must not imply an alert was sent when no worker exists.
+
+## Safety / diligence
+
+FirstLook is a screening and bid-discipline tool, not legal, title, appraisal, or investment advice. County/state rule packs are informational and must be verified against current official auction notices and qualified local guidance before bidding. ACS tract medians provide neighborhood context and are not comparable-sales appraisals.

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { databaseConfigured } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -7,5 +8,10 @@ export async function GET() {
     ok: true,
     service: "firstlook",
     time: new Date().toISOString(),
+    capabilities: {
+      database: databaseConfigured() ? "configured" : "not-configured",
+      countyWatchRegistration: databaseConfigured() ? "persistent" : "disabled",
+      alertDelivery: "worker-not-configured",
+    },
   });
 }

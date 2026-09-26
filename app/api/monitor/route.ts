@@ -1,34 +1,37 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { databaseConfigured, ensureSchema, getDb } from "@/lib/db";
 
 export const runtime = "nodejs";
 
-/** Phase 4 stub — stores monitor interest (no secrets). Expand to real county crawlers later. */
-const WATCHES: Array<{ email: string; county: string; state: string; createdAt: string }> = [];
+const WatchSchema = z.object({
+  email: z.string().trim().email().max(254),
+  county: z.string().trim().min(2).max(80),
+  state: z.string().trim().min(2).max(30),
+});
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as {
-      email?: string;
-      county?: string;
-      state?: string;
-    };
-    if (!body.email?.includes("@") || !body.county || !body.state) {
-      return NextResponse.json({ error: "email, county, and state required" }, { status: 400 });
+    const row = WatchSchema.parse(await request.json());
+    if (!databaseConfigured()) {
+      return NextResponse.json({ ok: false, status: "database-not-configured", message: "County Watch needs DATABASE_URL before registrations can be persisted." }, { status: 503 });
     }
-    const row = {
-      email: body.email.trim().toLowerCase(),
-      county: body.county.trim(),
-      state: body.state.trim().toUpperCase(),
-      createdAt: new Date().toISOString(),
-    };
-    WATCHES.push(row);
+    await ensureSchema();
+    const db = getDb();
+    await db.query(
+      `INSERT INTO county_watches (email, county, state, active)
+       VALUES ($1, $2, $3, TRUE)
+       ON CONFLICT (email, county, state)
+       DO UPDATE SET active=TRUE, updated_at=NOW()`,
+      [row.email.toLowerCase(), row.county, row.state.toUpperCase()],
+    );
     return NextResponse.json({
       ok: true,
-      message: `Watch registered for ${row.county}, ${row.state}. Phase 4 will email when new sale lists appear.`,
-      totalWatches: WATCHES.length,
+      status: "registered",
+      message: `Watch saved for ${row.county}, ${row.state.toUpperCase()}. Alert delivery becomes active when the county adapter/worker is configured.`,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Watch failed";
+    const message = err instanceof Error ? err.message : "Invalid watch request";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
