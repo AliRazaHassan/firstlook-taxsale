@@ -8,6 +8,7 @@ import {
   scoreProperty,
 } from "./score";
 import { attachMaxBids, type MaxBidDefaults } from "./maxBid";
+import { attachDealTruthScores } from "./truthScore";
 
 /** Re-rank already-researched parcels with a new buy box (no re-geocode). */
 export function rescoreExisting(
@@ -57,7 +58,7 @@ export function rescoreExisting(
     };
   });
 
-  return attachMaxBids(assignRanks(rescored), bidDefaults);
+  return attachDealTruthScores(attachMaxBids(assignRanks(rescored), bidDefaults));
 }
 
 export function impactStats(properties: ScoredProperty[]) {

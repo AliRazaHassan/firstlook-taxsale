@@ -2,6 +2,8 @@ export { DEFAULT_BUY_BOX, normalizeBuyBox } from "./buyBox";
 export { parseTaxSaleCsv, cleanStreetAddress } from "./ingest";
 export { researchProperties } from "./research";
 export { calculateMaxBid, attachMaxBids } from "./maxBid";
+export { calculateDealTruthScore, attachDealTruthScores } from "./truthScore";
+export type { DealTruthScore } from "./truthScore";
 export type { MaxBidDefaults } from "./maxBid";
 export { propertiesToCsv, propertiesToBidSheet, CSV_TEMPLATE } from "./exportCsv";
 export { rescoreExisting, impactStats } from "./rescore";

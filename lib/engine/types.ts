@@ -90,6 +90,16 @@ export type ScoredProperty = InputProperty &
     lookAtFirst: boolean;
     maxBid?: number | null;
     projectedProfitAtMaxBid?: number | null;
+    dealTruth?: {
+      overall: number;
+      opportunity: number;
+      valuation: number;
+      titleLegal: number;
+      auctionSafety: number;
+      liquidity: number;
+      confidence: "low" | "medium";
+      reasons: string[];
+    };
   };
 
 export type MaxBidInput = {
@@ -102,6 +112,11 @@ export type MaxBidInput = {
   desiredProfit?: number;
   contingency?: number;
   cryOutBid?: number;
+  titleLegal?: number;
+  survivingLiens?: number;
+  evictionPossession?: number;
+  auctionFees?: number;
+  redemptionCarry?: number;
 };
 
 export type MaxBidResult = {
@@ -117,5 +132,10 @@ export type MaxBidResult = {
     closingSell: number;
     desiredProfit: number;
     contingency: number;
+    titleLegal: number;
+    survivingLiens: number;
+    evictionPossession: number;
+    auctionFees: number;
+    redemptionCarry: number;
   };
 };
