@@ -1,3 +1,5 @@
+export { calculateDealAnalysis } from "./dealAnalysis";
+export type { DealAnalysisInput, DealStrategy } from "./dealAnalysis";
 export { DEFAULT_BUY_BOX, normalizeBuyBox } from "./buyBox";
 export { parseTaxSaleCsv, cleanStreetAddress } from "./ingest";
 export { researchProperties } from "./research";
