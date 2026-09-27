@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       properties?: ScoredProperty[];
       buyBox?: unknown;
-      bidDefaults?: { rehab?: number; holdingMonths?: number; monthlyHolding?: number; desiredProfitPct?: number };
+      bidDefaults?: { rehab?: number; holdingMonths?: number; monthlyHolding?: number; desiredProfitPct?: number; closingBuyPct?: number; closingSellPct?: number; contingencyPct?: number; titleLegal?: number; survivingLiens?: number; evictionPossession?: number; auctionFees?: number; redemptionCarry?: number };
     };
     if (!body.properties?.length) return NextResponse.json({ error: "properties required" }, { status: 400 });
     if (body.properties.length > MAX_PROPERTIES) {
