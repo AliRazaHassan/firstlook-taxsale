@@ -12,6 +12,7 @@ export const DEFAULT_BUY_BOX = {
   minEquitySpread: 0.45,
   maxCryOutBid: 0,
   minLookFirstScore: 55,
+  minBidHeadroomPct: 0.15,
   maxLookFirst: 5,
   weights: {
     equitySpread: 35,
@@ -58,6 +59,7 @@ export function normalizeBuyBox(raw: unknown): BuyBox {
     minEquitySpread: Math.max(-1, Math.min(1, Number(o.minEquitySpread ?? base.minEquitySpread))),
     maxCryOutBid: Math.max(0, Number(o.maxCryOutBid ?? base.maxCryOutBid) || 0),
     minLookFirstScore: Math.max(0, Math.min(100, Number(o.minLookFirstScore ?? base.minLookFirstScore) || 0)),
+    minBidHeadroomPct: Math.max(0, Math.min(0.95, Number(o.minBidHeadroomPct ?? base.minBidHeadroomPct) || 0)),
     maxLookFirst: Math.max(1, Math.min(25, Math.round(Number(o.maxLookFirst ?? base.maxLookFirst) || base.maxLookFirst))),
     weights: { ...base.weights, ...weightsIn },
     redFlags: {
