@@ -14,38 +14,49 @@ export type MaxBidDefaults = {
   redemptionCarry?: number;
 };
 
-/** Classic investor MAO: ARV minus all costs and desired profit. */
+function safeMoney(value: number | undefined, fallback = 0) {
+  const n = Number(value ?? fallback);
+  return Number.isFinite(n) ? Math.max(0, n) : Math.max(0, fallback);
+}
+
+function safePct(value: number | undefined, fallback: number) {
+  const n = Number(value ?? fallback);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(1, n));
+}
+
+/** Investor MAO: ARV minus all costs and target profit, solving buy-side closing costs against the offer itself. */
 export function calculateMaxBid(input: MaxBidInput): MaxBidResult {
-  const arv = Math.max(0, input.arv);
-  const rehab = Math.max(0, input.rehab);
-  const holdingMonths = input.holdingMonths ?? 4;
-  const monthlyHolding = input.monthlyHolding ?? 500;
-  const closingBuyPct = input.closingBuyPct ?? 0.02;
-  const closingSellPct = input.closingSellPct ?? 0.06;
-  const desiredProfit = input.desiredProfit ?? Math.round(arv * 0.15);
-  const contingency = input.contingency ?? Math.round(rehab * 0.1);
-  const titleLegal = Math.max(0, input.titleLegal ?? 0);
-  const survivingLiens = Math.max(0, input.survivingLiens ?? 0);
-  const evictionPossession = Math.max(0, input.evictionPossession ?? 0);
-  const auctionFees = Math.max(0, input.auctionFees ?? 0);
-  const redemptionCarry = Math.max(0, input.redemptionCarry ?? 0);
+  const arv = safeMoney(input.arv);
+  const rehab = safeMoney(input.rehab);
+  const holdingMonths = safeMoney(input.holdingMonths, 4);
+  const monthlyHolding = safeMoney(input.monthlyHolding, 500);
+  const closingBuyPct = safePct(input.closingBuyPct, 0.02);
+  const closingSellPct = safePct(input.closingSellPct, 0.06);
+  const desiredProfit = safeMoney(input.desiredProfit, Math.round(arv * 0.15));
+  const contingency = safeMoney(input.contingency, Math.round(rehab * 0.1));
+  const titleLegal = safeMoney(input.titleLegal);
+  const survivingLiens = safeMoney(input.survivingLiens);
+  const evictionPossession = safeMoney(input.evictionPossession);
+  const auctionFees = safeMoney(input.auctionFees);
+  const redemptionCarry = safeMoney(input.redemptionCarry);
   const riskCosts = titleLegal + survivingLiens + evictionPossession + auctionFees + redemptionCarry;
 
   const holding = holdingMonths * monthlyHolding;
-  let provisional = arv * 0.7;
-  for (let i = 0; i < 3; i++) {
-    const closingBuy = provisional * closingBuyPct;
-    const closingSell = arv * closingSellPct;
-    provisional = arv - rehab - holding - closingBuy - closingSell - desiredProfit - contingency - riskCosts;
-  }
+  const closingSell = arv * closingSellPct;
+  const beforeBuyClosing =
+    arv - rehab - holding - closingSell - desiredProfit - contingency - riskCosts;
 
-  const maxBid = Math.max(0, Math.round(provisional));
+  // If buy-side closing costs are X% of the offer, offer + offer*X = available amount.
+  const solvedOffer = beforeBuyClosing / (1 + closingBuyPct);
+  const maxBid = Math.max(0, Math.round(solvedOffer));
   const closingBuy = Math.round(maxBid * closingBuyPct);
-  const closingSell = Math.round(arv * closingSellPct);
-  const totalCosts = rehab + holding + closingBuy + closingSell + contingency + riskCosts;
+  const roundedClosingSell = Math.round(closingSell);
+  const totalCosts =
+    rehab + holding + closingBuy + roundedClosingSell + contingency + riskCosts;
   const projectedProfit = Math.round(arv - maxBid - totalCosts);
   const equityVsCryOut =
-    input.cryOutBid != null ? Math.round(maxBid - input.cryOutBid) : null;
+    input.cryOutBid != null ? Math.round(maxBid - Math.max(0, input.cryOutBid)) : null;
 
   return {
     maxBid,
@@ -57,7 +68,7 @@ export function calculateMaxBid(input: MaxBidInput): MaxBidResult {
       rehab,
       holding,
       closingBuy,
-      closingSell,
+      closingSell: roundedClosingSell,
       desiredProfit,
       contingency,
       titleLegal,
@@ -80,7 +91,7 @@ export function attachMaxBids<
   defaults: MaxBidDefaults = {},
 ): (T & { maxBid: number; projectedProfitAtMaxBid: number })[] {
   const rehab = defaults.rehab ?? 25000;
-  const desiredProfitPct = defaults.desiredProfitPct ?? 0.15;
+  const desiredProfitPct = safePct(defaults.desiredProfitPct, 0.15);
 
   return rows.map((row) => {
     const arv = row.estimatedMarketMid ?? row.assessed_fmv;

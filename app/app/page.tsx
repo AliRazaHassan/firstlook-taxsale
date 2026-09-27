@@ -344,26 +344,33 @@ export default function AppPage() {
     const buyClosing = d.purchasePrice * safePct(d.buyClosingPct);
     const rehabContingency = d.rehab * safePct(d.contingencyPct);
     const holding = Math.max(0, d.holdingMonths) * Math.max(0, d.monthlyHolding);
-    const cashNeeded = down + buyClosing + d.rehab + rehabContingency;
+    const cashNeeded = down + buyClosing + d.rehab + rehabContingency + holding;
     const capRate = d.purchasePrice > 0 ? annualNoi / d.purchasePrice : 0;
     const cashOnCash = cashNeeded > 0 ? cashFlow * 12 / cashNeeded : 0;
     const sellClosing = d.arv * safePct(d.sellClosingPct);
     const flipProfit = d.arv - d.purchasePrice - buyClosing - d.rehab - rehabContingency - holding - sellClosing;
     const targetProfit = d.arv * 0.15;
-    const mao = Math.max(0, d.arv - sellClosing - d.rehab - rehabContingency - holding - targetProfit - (d.arv * safePct(d.buyClosingPct)));
+    const beforeBuyClosing = d.arv - sellClosing - d.rehab - rehabContingency - holding - targetProfit;
+    const mao = Math.max(0, beforeBuyClosing / (1 + safePct(d.buyClosingPct)));
     const refiGross = d.arv * safePct(d.refiLtvPct);
     const refiClosing = refiGross * safePct(d.refiClosingPct);
     const refiNet = Math.max(0, refiGross - refiClosing);
-    const initialCashBasis = cashNeeded + holding;
-    const cashLeftIn = Math.max(0, initialCashBasis - refiNet);
+    const elapsedPayments = Math.min(payments, Math.max(0, Math.round(d.holdingMonths)));
+    const remainingLoan = loan <= 0 ? 0 : monthlyRate === 0
+      ? Math.max(0, loan - mortgage * elapsedPayments)
+      : Math.max(0, loan * Math.pow(1 + monthlyRate, elapsedPayments) - mortgage * (Math.pow(1 + monthlyRate, elapsedPayments) - 1) / monthlyRate);
+    const cashBackFromRefi = Math.max(0, refiNet - remainingLoan);
+    const initialCashBasis = cashNeeded;
+    const cashLeftIn = Math.max(0, initialCashBasis - cashBackFromRefi);
     const warnings = [
       d.arv <= 0 ? "Working ARV is missing." : null,
       d.monthlyRent <= 0 && dealStrategy !== "flip" ? "Monthly rent is missing; rental returns are not decision-ready." : null,
       d.taxesMonthly <= 0 && dealStrategy !== "flip" ? "Property tax assumption is missing." : null,
       d.insuranceMonthly <= 0 && dealStrategy !== "flip" ? "Insurance assumption is missing." : null,
+      dealStrategy === "brrrr" && refiNet <= remainingLoan ? "Refinance proceeds do not exceed the estimated remaining acquisition loan, so no investor cash-out is modeled." : null,
       "Working ARV is an estimate until property-level sold comps are verified.",
     ].filter(Boolean) as string[];
-    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, cashNeeded, capRate, cashOnCash, flipProfit, mao, refiGross, refiClosing, refiNet, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings };
+    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, cashNeeded, capRate, cashOnCash, flipProfit, mao, refiGross, refiClosing, refiNet, remainingLoan, cashBackFromRefi, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings };
   }, [dealInputs, dealStrategy]);
 
   const investorIntel = useMemo(() => {
@@ -572,7 +579,8 @@ export default function AppPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Concierge failed");
       const engineerChecks = useEngineer && Array.isArray(json.deterministicFindings) && json.deterministicFindings.length ? "\n\nChecks:\n- " + json.deterministicFindings.join("\n- ") : "";
-      setConciergeMessages((m) => [...m, { role: "assistant", text: useEngineer ? ("⚙ Engineer mode\n\n" + (json.analysis ?? "Diagnosis complete.") + engineerChecks + "\n\nI will not silently deploy a code change; use the approved fix workflow for source changes.") : json.answer }]);
+      const providerNote = !useEngineer && json.fallback ? `\n\nProvider status: ${json.providerReason ?? json.providerStatus ?? "fallback"}` : "";
+      setConciergeMessages((m) => [...m, { role: "assistant", text: useEngineer ? ("⚙ Engineer mode\n\n" + (json.analysis ?? "Diagnosis complete.") + engineerChecks + "\n\nI will not silently deploy a code change; use the approved fix workflow for source changes.") : (json.answer + providerNote) }]);
     } catch (err) {
       setConciergeMessages((m) => [...m, { role: "assistant", text: err instanceof Error ? err.message : "Concierge is unavailable." }]);
     } finally {
