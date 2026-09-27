@@ -172,6 +172,18 @@ function run() {
   ], valueFloorBox, { rehab: 10000, desiredProfitPct: 0.1 });
   assert.equal(belowFloor[0]?.lookAtFirst, false, "min assessed value must be a real Look First hard floor");
 
+  const ratioCapBox = normalizeBuyBox({
+    minLookFirstScore: 0,
+    minEquitySpread: -1,
+    minBidHeadroomPct: 0,
+    minAssessedValue: 0,
+    maxTaxBurdenRatio: 0.1,
+  });
+  const aboveRatioCap = rescoreExisting([
+    synthetic({ parcel_id: "ABOVE-RATIO-CAP", assessed_fmv: 200000, cry_out_bid: 30000 }),
+  ], ratioCapBox, { rehab: 10000, desiredProfitPct: 0.1 });
+  assert.equal(aboveRatioCap[0]?.lookAtFirst, false, "max cry-out/FMV ratio must be a real Look First ceiling");
+
   const evidenceBox = normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1 });
   const missingHistory = rescoreExisting([synthetic({ parcel_id: "MISSING-HISTORY", tax_years: "", taxYearsList: [], delinquencyYears: 0 })], evidenceBox);
   assert(missingHistory[0]?.redFlags.some((f) => /history missing/i.test(f)), "missing delinquency history must be explicit, not silently rewarded");
