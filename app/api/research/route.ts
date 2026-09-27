@@ -7,9 +7,8 @@ import {
   normalizeBuyBox,
   parseTaxSaleCsv,
   researchProperties,
-  attachDealTruthScores,
+  rescoreExisting,
 } from "@/lib/engine";
-import { attachMaxBids } from "@/lib/engine/maxBid";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -61,7 +60,7 @@ export async function POST(request: Request) {
 
     let results = await researchProperties(properties, buyBox);
     if (body.bidDefaults) {
-      results = attachDealTruthScores(attachMaxBids(results, body.bidDefaults));
+      results = rescoreExisting(results, buyBox, body.bidDefaults);
     }
     const impact = impactStats(results);
 
