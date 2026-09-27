@@ -7,7 +7,7 @@ const ACS_YEAR = "2024";
 const USER_AGENT =
   "FirstLook/1.0 (tax-sale research MVP; legitimate public-data enrichment)";
 
-const CITY_FALLBACKS = [
+const CLAYTON_GA_CITY_FALLBACKS = [
   "Jonesboro",
   "Morrow",
   "Riverdale",
@@ -85,7 +85,11 @@ function parseGeocodePayload(payload: unknown): GeocodeResult {
 
 export async function geocodeProperty(property: InputProperty): Promise<GeocodeResult> {
   const street = cleanStreetAddress(property.address);
-  const cities = [property.city_hint, ...CITY_FALLBACKS].filter(
+  const jurisdictionFallbacks =
+    property.state.trim().toUpperCase() === "GA" && property.county.trim().toLowerCase() === "clayton"
+      ? CLAYTON_GA_CITY_FALLBACKS
+      : [];
+  const cities = [property.city_hint, ...jurisdictionFallbacks].filter(
     (c, i, arr): c is string => Boolean(c) && arr.indexOf(c) === i,
   );
 
