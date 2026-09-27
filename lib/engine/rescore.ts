@@ -58,7 +58,7 @@ export function rescoreExisting(
     };
   });
 
-  return attachDealTruthScores(attachMaxBids(assignRanks(rescored), bidDefaults));
+  return attachDealTruthScores(attachMaxBids(assignRanks(rescored, buyBox), bidDefaults));
 }
 
 export function impactStats(properties: ScoredProperty[]) {
