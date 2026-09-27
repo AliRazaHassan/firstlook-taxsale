@@ -527,11 +527,12 @@
 .inputGrid label span{display:flex;align-items:center;flex-wrap:wrap;gap:.1rem}
 
 .contextTag{display:inline-block;padding:.1rem .35rem;border-radius:999px;background:#e5f3eb;color:#245e42;font-size:.68rem;font-weight:750}
-.commandCenter{display:grid;gap:1rem}
+.commandCenter{display:grid;grid-column:1/-1;gap:1rem;min-width:0}
 .commandHero{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;padding:1.35rem;border-radius:12px;background:linear-gradient(135deg,#103b32,#0a5746 55%,#174e6c);color:#fff;box-shadow:0 16px 38px rgba(18,24,28,.12)}
 .commandHero h2{font-family:var(--font-display),"Space Grotesk",system-ui,sans-serif;font-size:clamp(1.45rem,3vw,2.2rem);letter-spacing:-.04em;margin:.55rem 0 .25rem}
-.commandHero .muted{color:rgba(255,255,255,.76);max-width:760px}
-.commandHero .btn{background:#fff;color:#0a5746;border-color:#fff}
+.commandHero :global(.muted){color:rgba(255,255,255,.86);max-width:760px}
+.commandHero :global(.btn){background:#fff;color:#0a5746;border-color:#fff}
+.commandHero :global(.pill){background:#e7f4ed;color:#103b32}
 .commandMetrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.7rem}
 .commandMetrics>div{padding:1rem;background:#fff;border:1px solid #d5d9d3;border-radius:8px;min-width:0}
 .commandMetrics span,.dealPulse span{display:block;text-transform:uppercase;letter-spacing:.05em;font-size:.65rem;color:#69736d;font-weight:700}
