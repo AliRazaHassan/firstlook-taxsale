@@ -1378,7 +1378,7 @@ export default function AppPage() {
               <label className={styles.check}><input type="checkbox" checked={buyBox.avoidVacantLand}
                 onChange={(e) => setBuyBox((b) => ({ ...b, avoidVacantLand: e.target.checked }))} />Avoid vacant / low-value land</label>
               <label className={styles.check}><input type="checkbox" checked={buyBox.avoidLlcInvestorOwned}
-                onChange={(e) => setBuyBox((b) => ({ ...b, avoidLlcInvestorOwned: e.target.checked }))} />Soft-penalize LLC / investor owners</label>
+                onChange={(e) => setBuyBox((b) => ({ ...b, avoidLlcInvestorOwned: e.target.checked }))} />Avoid LLC / investor-owned in Look First</label>
 
               <details className={styles.advancedBox}>
                 <summary>Advanced scoring + red-flag controls</summary>

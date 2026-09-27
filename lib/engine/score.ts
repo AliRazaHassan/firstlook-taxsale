@@ -175,6 +175,7 @@ export function assignRanks(rows: Omit<ScoredProperty, "rank" | "lookAtFirst">[]
     const bidHeadroomPct = (row.maxBid - row.cry_out_bid) / row.maxBid;
     if (bidHeadroomPct < buyBox.minBidHeadroomPct) continue;
     if (row.assessed_fmv < buyBox.minAssessedValue) continue;
+    if (row.taxBurdenRatio > buyBox.maxTaxBurdenRatio) continue;
     if (buyBox.avoidVacantLand && (row.propertyType === "vacant_land" || row.propertyType === "likely_vacant_or_low_value")) continue;
     if (row.equitySpread < buyBox.minEquitySpread) continue;
     if (buyBox.maxCryOutBid > 0 && row.cry_out_bid > buyBox.maxCryOutBid) continue;
