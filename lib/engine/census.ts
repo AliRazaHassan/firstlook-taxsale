@@ -6,6 +6,7 @@ const GEOCODER =
 const ACS_YEAR = "2024";
 const USER_AGENT =
   "FirstLook/1.0 (tax-sale research MVP; legitimate public-data enrichment)";
+const PUBLIC_DATA_TIMEOUT_MS = 8000;
 
 const CLAYTON_GA_CITY_FALLBACKS = [
   "Jonesboro",
@@ -24,6 +25,7 @@ async function fetchJson(url: string): Promise<unknown> {
       "User-Agent": USER_AGENT,
       Accept: "application/json",
     },
+    signal: AbortSignal.timeout(PUBLIC_DATA_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.json();
