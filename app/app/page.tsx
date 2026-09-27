@@ -199,11 +199,7 @@ export default function AppPage() {
   ]);
   const [conciergeLoading, setConciergeLoading] = useState(false);
   const [aiContextMenu, setAiContextMenu] = useState<AiContextMenu>(null);
-  const [engineerOpen, setEngineerOpen] = useState(false);
   const [engineerKey, setEngineerKey] = useState("");
-  const [engineerRequest, setEngineerRequest] = useState("");
-  const [engineerResult, setEngineerResult] = useState("");
-  const [engineerLoading, setEngineerLoading] = useState(false);
   const [subjectSqft, setSubjectSqft] = useState(0);
   const [manualComps, setManualComps] = useState<ManualComp[]>([
     { id: 1, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
@@ -694,7 +690,7 @@ export default function AppPage() {
     });
     const json = await res.json();
     if (!res.ok) {
-      setError(json.error ?? "Watch failed");
+      setError(json.message ?? json.error ?? "Watch registration failed");
       return;
     }
     setWatchMsg(json.message);
@@ -777,18 +773,6 @@ export default function AppPage() {
     }
   }
 
-  async function runEngineerAudit() {
-    if (!engineerRequest.trim() || !engineerKey.trim()) return;
-    setEngineerLoading(true); setEngineerResult("");
-    try {
-      const res = await fetch("/api/admin/engineer", { method:"POST", headers:{"Content-Type":"application/json","x-firstlook-admin-key":engineerKey}, body:JSON.stringify({request:engineerRequest,module:osModule,strategy:dealStrategy,inputs:dealInputs,results:dealAnalysis,property:selected ?? undefined}) });
-      const json = await res.json();
-      if(!res.ok) throw new Error(json.error ?? "Engineer audit failed");
-      const checks = Array.isArray(json.deterministicFindings) && json.deterministicFindings.length ? "\n\nDeterministic checks:\n- "+json.deterministicFindings.join("\n- ") : "\n\nDeterministic checks: no obvious invariant violation.";
-      setEngineerResult((json.analysis ?? "Diagnosis complete.") + checks);
-    } catch(err){ setEngineerResult(err instanceof Error ? err.message : "Engineer audit failed"); }
-    finally{ setEngineerLoading(false); }
-  }
 
   useEffect(() => {
     conciergeScrollRef.current?.scrollTo({ top: conciergeScrollRef.current.scrollHeight, behavior: "smooth" });
@@ -1209,7 +1193,7 @@ export default function AppPage() {
             <>
               <h2>County watch</h2>
               <p className="muted">
-                Phase 4: register for new tax-sale list alerts in your counties.
+                Save a county watch registration. Delivery is only active after the database and alert worker are connected; FirstLook will not pretend an alert is live before then.
               </p>
               <div className="field">
                 <label>Email</label>
