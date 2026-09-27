@@ -174,10 +174,11 @@ export function assignRanks(rows: Omit<ScoredProperty, "rank" | "lookAtFirst">[]
     if (row.maxBid == null || row.maxBid <= 0 || row.cry_out_bid >= row.maxBid) continue;
     const bidHeadroomPct = (row.maxBid - row.cry_out_bid) / row.maxBid;
     if (bidHeadroomPct < buyBox.minBidHeadroomPct) continue;
-    if (row.propertyType.includes("vacant")) continue;
+    if (row.assessed_fmv < buyBox.minAssessedValue) continue;
+    if (buyBox.avoidVacantLand && (row.propertyType === "vacant_land" || row.propertyType === "likely_vacant_or_low_value")) continue;
     if (row.equitySpread < buyBox.minEquitySpread) continue;
     if (buyBox.maxCryOutBid > 0 && row.cry_out_bid > buyBox.maxCryOutBid) continue;
-    if (row.redFlags.some((f) => /investor owner/i.test(f))) continue;
+    if (buyBox.avoidLlcInvestorOwned && row.redFlags.some((f) => /investor owner/i.test(f))) continue;
     if (row.propertyType === "related_parcel") continue;
     row.lookAtFirst = true;
     picks += 1;

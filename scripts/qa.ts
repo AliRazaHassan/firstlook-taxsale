@@ -145,6 +145,33 @@ function run() {
   ], strictBox);
   assert.equal(strictRows.some((p) => p.lookAtFirst), false, "Look First must not fill quotas with explicitly excluded risky deal types");
 
+  const permissiveBox = normalizeBuyBox({
+    minLookFirstScore: 0,
+    minEquitySpread: -1,
+    minBidHeadroomPct: 0,
+    minAssessedValue: 0,
+    avoidVacantLand: false,
+    avoidLlcInvestorOwned: false,
+    maxLookFirst: 5,
+  });
+  const permissiveRows = rescoreExisting([
+    synthetic({ parcel_id: "VACANT-ALLOWED", property_type_hint: "vacant", cry_out_bid: 10000 }),
+    synthetic({ parcel_id: "ENTITY-ALLOWED", owner: "TEST INVESTMENTS LLC", cry_out_bid: 10000 }),
+  ], permissiveBox, { rehab: 10000, desiredProfitPct: 0.1 });
+  assert.equal(permissiveRows.find((p) => p.parcel_id === "VACANT-ALLOWED")?.lookAtFirst, true, "vacant deals may qualify when avoidVacantLand is off");
+  assert.equal(permissiveRows.find((p) => p.parcel_id === "ENTITY-ALLOWED")?.lookAtFirst, true, "entity-owned deals may qualify when the avoidance toggle is off");
+
+  const valueFloorBox = normalizeBuyBox({
+    minLookFirstScore: 0,
+    minEquitySpread: -1,
+    minBidHeadroomPct: 0,
+    minAssessedValue: 150000,
+  });
+  const belowFloor = rescoreExisting([
+    synthetic({ parcel_id: "BELOW-FLOOR", assessed_fmv: 100000, cry_out_bid: 10000, tractMedianHomeValue: 150000 }),
+  ], valueFloorBox, { rehab: 10000, desiredProfitPct: 0.1 });
+  assert.equal(belowFloor[0]?.lookAtFirst, false, "min assessed value must be a real Look First hard floor");
+
   const evidenceBox = normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1 });
   const missingHistory = rescoreExisting([synthetic({ parcel_id: "MISSING-HISTORY", tax_years: "", taxYearsList: [], delinquencyYears: 0 })], evidenceBox);
   assert(missingHistory[0]?.redFlags.some((f) => /history missing/i.test(f)), "missing delinquency history must be explicit, not silently rewarded");
