@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { calculateMaxBid, normalizeBuyBox, propertiesToCsv, rescoreExisting, InputPropertySchema, type ScoredProperty } from "../lib/engine";
+import { calculateDealAnalysis, calculateMaxBid, normalizeBuyBox, propertiesToCsv, rescoreExisting, InputPropertySchema, type DealAnalysisInput, type ScoredProperty } from "../lib/engine";
 import { checkRateLimit } from "../lib/rateLimit";
 
 function synthetic(overrides: Partial<ScoredProperty>): ScoredProperty {
@@ -212,6 +212,64 @@ function run() {
   assert(formulaCsv.includes("'=HYPERLINK"), "CSV export must neutralize formula-like parcel values");
   assert(formulaCsv.includes("'+CMD"), "CSV export must neutralize formula-like owner values");
   assert(formulaCsv.includes("'@SUM"), "CSV export must neutralize formula-like address values");
+
+  const baseDeal: DealAnalysisInput = {
+    purchasePrice: 80000, arv: 180000, rehab: 30000, monthlyRent: 1800,
+    downPaymentPct: 20, interestRate: 7.5, loanYears: 30, vacancyPct: 5, managementPct: 8,
+    taxesMonthly: 250, insuranceMonthly: 125, otherMonthly: 75, buyClosingPct: 2, sellClosingPct: 8,
+    holdingMonths: 6, monthlyHolding: 650, contingencyPct: 10, targetProfitPct: 15,
+    refiLtvPct: 75, refiClosingPct: 3, titleLegal: 3000, survivingLiens: 0,
+    evictionPossession: 1500, auctionFees: 800, redemptionCarry: 0,
+  };
+  const baseFlip = calculateDealAnalysis(baseDeal, "flip");
+  const riskierFlip = calculateDealAnalysis({ ...baseDeal, titleLegal: 10000, survivingLiens: 15000 }, "flip");
+  assert(riskierFlip.flipProfit < baseFlip.flipProfit, "more risk reserves must lower flip profit");
+  assert(riskierFlip.mao < baseFlip.mao, "more risk reserves must lower MAO");
+  assert(baseFlip.stress.flipProfit <= baseFlip.flipProfit, "flip downside stress must not be more optimistic than base case");
+
+  for (let i = 1; i <= 200; i++) {
+    const seededDeal: DealAnalysisInput = {
+      ...baseDeal,
+      purchasePrice: 5000 + (i * 7919) % 250000,
+      arv: 60000 + (i * 11939) % 450000,
+      rehab: (i * 3571) % 120000,
+      monthlyRent: 700 + (i * 47) % 3500,
+      downPaymentPct: (i * 7) % 101,
+      interestRate: (i * 13) % 20,
+      loanYears: 5 + (i % 41),
+      vacancyPct: (i * 3) % 25,
+      managementPct: (i * 5) % 20,
+      taxesMonthly: (i * 71) % 1200,
+      insuranceMonthly: (i * 29) % 600,
+      otherMonthly: (i * 17) % 500,
+      buyClosingPct: (i * 2) % 10,
+      sellClosingPct: 4 + (i % 12),
+      holdingMonths: i % 25,
+      monthlyHolding: (i * 83) % 2500,
+      contingencyPct: (i * 4) % 35,
+      targetProfitPct: 5 + (i % 31),
+      refiLtvPct: 50 + (i % 46),
+      refiClosingPct: (i * 2) % 8,
+      titleLegal: (i * 101) % 15000,
+      survivingLiens: (i * 131) % 25000,
+      evictionPossession: (i * 53) % 10000,
+      auctionFees: (i * 19) % 5000,
+      redemptionCarry: (i * 97) % 12000,
+    };
+    for (const strategy of ["flip","rental","brrrr"] as const) {
+      const out = calculateDealAnalysis(seededDeal, strategy);
+      const numericValues = [
+        out.down,out.loan,out.mortgage,out.monthlyExpenses,out.cashFlow,out.annualNoi,out.dscr,
+        out.loanToValue,out.cashNeeded,out.capRate,out.cashOnCash,out.flipProfit,out.mao,out.refiNet,
+        out.remainingLoan,out.cashBackFromRefi,out.cashLeftIn,out.stress.flipProfit,out.stress.cashFlow,out.stress.dscr,
+      ];
+      assert(numericValues.every(Number.isFinite), `scenario ${i} ${strategy} must never emit NaN/Infinity`);
+      assert(out.loan >= 0 && out.remainingLoan >= 0 && out.refiNet >= 0 && out.cashLeftIn >= 0, `scenario ${i} ${strategy} debt/cash floor invariant`);
+      if (strategy === "flip") assert(out.stress.flipProfit <= out.flipProfit + 0.01, `scenario ${i} stress flip should not improve profit`);
+      if (strategy !== "flip") assert(out.stress.cashFlow <= out.cashFlow + 0.01, `scenario ${i} rental stress should not improve cash flow`);
+      if (strategy === "brrrr") assert(out.cashBackFromRefi <= out.refiNet + 0.01, `scenario ${i} BRRRR cash back cannot exceed net refi proceeds`);
+    }
+  }
 
   const req = new Request("https://firstlook.local/test", { headers: { "x-forwarded-for": "203.0.113.9" } });
   assert.equal(checkRateLimit(req, "qa-rate", 2, 60000).ok, true, "first request should pass rate limit");
