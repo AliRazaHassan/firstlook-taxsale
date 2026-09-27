@@ -5,6 +5,10 @@ export const runtime = "nodejs";
 
 const Body = z.object({
   question: z.string().trim().min(1).max(1200),
+  history: z.array(z.object({
+    role: z.enum(["user","assistant"]),
+    text: z.string().trim().min(1).max(2000),
+  })).max(8).optional(),
   property: z.record(z.unknown()).optional(),
   diligence: z.record(z.unknown()).nullable().optional(),
   analysis: z.record(z.unknown()).optional(),
@@ -71,7 +75,8 @@ export async function POST(request: Request) {
       diligence: body.diligence,
       analysis: body.analysis,
       portfolio: body.portfolio,
-    }).slice(0, 22000);
+      recentConversation: body.history ?? [],
+    }).slice(0, 26000);
 
     const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
@@ -83,7 +88,7 @@ export async function POST(request: Request) {
         model: process.env.OPENAI_CONCIERGE_MODEL || "gpt-4.1-mini",
         instructions:
           "You are FirstLook Copilot, a real-estate and tax-sale decision-support assistant. Explain the supplied FirstLook results in plain English and use the supplied analyzer inputs/results when the question is about a calculation. Be concise and practical. Never invent property facts, liens, title status, county law, comps, occupancy, condition, rent, taxes, insurance, or redemption facts. Clearly distinguish modeled estimates from verified facts and user assumptions. Never guarantee safety or profit. When evidence is missing, name exactly what must be verified. You may explain calculations and suggest diligence steps, but do not present yourself as a lawyer, title examiner, appraiser, or financial adviser.",
-        input: `FIRSTLOOK CONTEXT:\n${context}\n\nUSER QUESTION:\n${body.question}`,
+        input: `FIRSTLOOK CONTEXT (including recent conversation when available):\n${context}\n\nCURRENT USER QUESTION:\n${body.question}`,
         max_output_tokens: 650,
       }),
       signal: AbortSignal.timeout(25000),
