@@ -67,11 +67,11 @@ export function buildDiligenceChecklist(
     },
     {
       id: "comps",
-      label: "Exit value sanity-checked (comps or tract median)",
+      label: "Exit value sanity-checked with property-level sold comps",
       severity: "recommended",
       autoHint:
         property.tractMedianHomeValue != null
-          ? `ACS tract median $${property.tractMedianHomeValue.toLocaleString()}`
+          ? `ACS tract median $${property.tractMedianHomeValue.toLocaleString()} is neighborhood context only`
           : "No ACS median — pull comps manually",
     },
   ];
@@ -94,18 +94,18 @@ export function valuationConfidence(property: ScoredProperty): {
   label: string;
   detail: string;
 } {
-  if (property.geocodeStatus === "matched" && property.tractMedianHomeValue != null) {
+  if (property.geocodeStatus === "matched" && property.tractMedianHomeValue != null && property.assessed_fmv > 0) {
     return {
       level: "medium",
       label: "Medium confidence",
-      detail: "Assessed FMV is blended with an ACS tract median. This is neighborhood context, not property-level comparable sales; verify comps before bidding.",
+      detail: "Assessed FMV is cross-checked against ACS tract context. This is still not property-level comparable-sales evidence; verify sold comps before bidding.",
     };
   }
   if (property.assessed_fmv > 0) {
     return {
-      level: "medium",
-      label: "Medium confidence",
-      detail: "Using assessed FMV only. Pull comps before raising bids.",
+      level: "low",
+      label: "Low confidence",
+      detail: "Using assessed FMV without property-level sold comps. Treat this as a rough reference, not a decision-ready ARV.",
     };
   }
   return {
