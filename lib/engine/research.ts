@@ -45,7 +45,7 @@ export async function researchProperties(
         : 0;
     const propertyType = classifyPropertyType(property, buyBox);
     const market = estimateMarketRange(property.assessed_fmv, acs.tractMedianHomeValue);
-    const redFlags = collectRedFlags(property, buyBox, propertyType, taxBurdenRatio, delinquencyYears);
+    const redFlags = collectRedFlags(property, buyBox, propertyType, taxBurdenRatio, delinquencyYears, equitySpread);
     const links = buildResearchLinks(property, geo.matchedAddress, geo.lat, geo.lon);
 
     const score = scoreProperty({

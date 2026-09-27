@@ -24,6 +24,7 @@ export function collectRedFlags(
   propertyType: string,
   taxBurdenRatio: number,
   delinquencyYears: number,
+  equitySpread: number,
 ): string[] {
   const flags: string[] = [];
   if (propertyType === "vacant_land" || propertyType === "likely_vacant_or_low_value") {
@@ -176,7 +177,7 @@ export function assignRanks(rows: Omit<ScoredProperty, "rank" | "lookAtFirst">[]
     picks += 1;
   }
 
-  if (picks < 5) {
+  if (picks < buyBox.maxLookFirst) {
     for (const row of ranked) {
       if (picks >= buyBox.maxLookFirst) break;
       if (row.lookAtFirst) continue;
