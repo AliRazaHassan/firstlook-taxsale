@@ -26,9 +26,9 @@ export default function LandingPage() {
         <p className={`${styles.kicker} rise`}>Tax-sale bid discipline OS</p>
         <h1 className={`${styles.logoHero} rise-2`}>FirstLook</h1>
         <p className={`${styles.sub} rise-3`}>
-          PropStream sells data. FastLien sells lists. Investors still overbid.
-          FirstLook ranks the official county list and locks a walk-away max bid before auction
-          adrenaline hits.
+          Turn a raw tax-sale list into a disciplined investment decision. FirstLook ranks the list,
+          exposes the evidence behind the deal, calculates a walk-away bid ceiling, stress-tests the
+          economics, and keeps the next action visible.
         </p>
         <div className={`${styles.ctaRow} rise-3`}>
           <Link href="/app" className="btn btn-primary">
@@ -37,6 +37,21 @@ export default function LandingPage() {
           <a href="/api/export" className="btn btn-ghost">
             Download CSV template
           </a>
+        </div>
+
+        <div className={styles.capabilityStrip}>
+          <span>Buy Box ranking</span>
+          <span>Max Bid + MAO</span>
+          <span>Property 360</span>
+          <span>Flip / Rental / BRRRR</span>
+          <span>Evidence Ledger</span>
+          <span>FirstLook Copilot</span>
+        </div>
+
+        <div className={styles.heroProof}>
+          <div><strong>Deterministic math</strong><span>Core underwriting is calculated by tested engine logic, not invented by AI.</span></div>
+          <div><strong>Evidence-aware</strong><span>Facts, estimates, assumptions and unresolved items stay visibly separated.</span></div>
+          <div><strong>Bid discipline</strong><span>Look First requires Buy Box fit and real headroom below the modeled ceiling.</span></div>
         </div>
 
         <div className={`${styles.heroViz} rise-3`}>
@@ -52,27 +67,27 @@ export default function LandingPage() {
       </section>
 
       <section id="gap" className={`container ${styles.section}`}>
-        <h2 className={styles.h2}>What the market is missing</h2>
+        <h2 className={styles.h2}>From property data to a decision</h2>
         <div className={styles.gapGrid}>
           <article className="panel">
-            <h3>PropStream · ~$99/mo</h3>
+            <h3>Raw lists create research overload</h3>
             <p className="muted">
-              Broad lead machine. Tax delinquency is one filter. Built for outreach — not
-              auction-day bid ceilings on an official sale list.
+              A county list can contain dozens of parcels, but not every parcel deserves the same
+              research time or capital attention.
             </p>
           </article>
           <article className="panel">
-            <h3>FastLien · ~$49/mo</h3>
+            <h3>Spreadsheets separate the evidence</h3>
             <p className="muted">
-              Aggregates upcoming sale lists. Still leaves ranking, diligence, and overbid
-              discipline mostly on you.
+              Bid math, comps, rehab, financing and diligence usually live in different tabs and
+              tools, making assumptions easy to miss.
             </p>
           </article>
           <article className={`panel ${styles.featured}`}>
-            <h3>FirstLook gap</h3>
+            <h3>FirstLook keeps the decision connected</h3>
             <p className="muted">
-              Upload the county’s own list → look-first shortlist → hard max bid → county rule pack
-              → diligence checklist → auction bid sheet.
+              Upload → shortlist → Property 360 → scenarios → max bid → evidence review → diligence
+              → pipeline, with Copilot reading the same deal context.
             </p>
           </article>
         </div>
@@ -99,9 +114,9 @@ export default function LandingPage() {
             </p>
           </article>
           <article className="panel">
-            <span className="tag tag-map">Live stub</span>
-            <h3>Phase 4 — Don’t miss the next sale</h3>
-            <p className="muted">County watch registration → path to automated new-list alerts.</p>
+            <span className="tag tag-map">Infrastructure gated</span>
+            <h3>Phase 4 — County watch</h3>
+            <p className="muted">The UI reports the real backend state and stays disabled until persistent database + alert delivery are connected.</p>
           </article>
         </div>
       </section>
