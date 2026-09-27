@@ -10,9 +10,9 @@
     "research": "tsx src-cli/index.ts",
     "research:sheets": "tsx src-cli/index.ts --sheets",
     "typecheck": "tsc --noEmit",
-    "qa": "tsx scripts/qa.ts",
+    "qa": "node --import tsx scripts/qa.ts",
     "prebuild": "npm run qa && npm run qa:routes && npm audit --audit-level=high",
-    "qa:routes": "tsx scripts/qa-routes.ts"
+    "qa:routes": "node --import tsx scripts/qa-routes.ts"
   },
   "engines": {
     "node": ">=20"

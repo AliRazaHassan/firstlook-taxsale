@@ -48,15 +48,25 @@ export function calculateDealAnalysis(raw: DealAnalysisInput, strategy: DealStra
     ? loan / payments
     : loan * monthlyRate * Math.pow(1 + monthlyRate, payments) / (Math.pow(1 + monthlyRate, payments) - 1);
 
+  const refiGross = d.arv * safePct(d.refiLtvPct);
+  const refiClosing = refiGross * safePct(d.refiClosingPct);
+  const refiNet = Math.max(0, refiGross - refiClosing);
+  // BRRRR operating returns describe the stabilized property after refinancing.
+  const operatingLoan = strategy === "brrrr" ? refiGross : loan;
+  const operatingMortgage = strategy === "brrrr"
+    ? operatingLoan <= 0 ? 0 : monthlyRate === 0 ? operatingLoan / payments
+      : operatingLoan * monthlyRate * Math.pow(1 + monthlyRate, payments) / (Math.pow(1 + monthlyRate, payments) - 1)
+    : mortgage;
+
   const vacancy = d.monthlyRent * safePct(d.vacancyPct);
   const management = d.monthlyRent * safePct(d.managementPct);
   const monthlyOperating = vacancy + management + d.taxesMonthly + d.insuranceMonthly + d.otherMonthly;
-  const monthlyExpenses = mortgage + monthlyOperating;
+  const monthlyExpenses = operatingMortgage + monthlyOperating;
   const cashFlow = d.monthlyRent - monthlyExpenses;
   const annualNoi = (d.monthlyRent - monthlyOperating) * 12;
-  const annualDebtService = mortgage * 12;
+  const annualDebtService = operatingMortgage * 12;
   const dscr = annualDebtService > 0 ? annualNoi / annualDebtService : 0;
-  const loanToValue = d.arv > 0 ? loan / d.arv : 0;
+  const loanToValue = d.arv > 0 ? operatingLoan / d.arv : 0;
 
   const buyClosing = d.purchasePrice * safePct(d.buyClosingPct);
   const rehabContingency = d.rehab * safePct(d.contingencyPct);
@@ -75,9 +85,6 @@ export function calculateDealAnalysis(raw: DealAnalysisInput, strategy: DealStra
   const beforeBuyClosing = d.arv - sellClosing - d.rehab - rehabContingency - holding - targetProfit - riskReserves;
   const mao = Math.max(0, beforeBuyClosing / (1 + safePct(d.buyClosingPct)));
 
-  const refiGross = d.arv * safePct(d.refiLtvPct);
-  const refiClosing = refiGross * safePct(d.refiClosingPct);
-  const refiNet = Math.max(0, refiGross - refiClosing);
   const elapsedPayments = Math.min(payments, Math.max(0, Math.round(d.holdingMonths)));
   const remainingLoan = loan <= 0 ? 0 : monthlyRate === 0
     ? Math.max(0, loan - mortgage * elapsedPayments)
@@ -92,9 +99,9 @@ export function calculateDealAnalysis(raw: DealAnalysisInput, strategy: DealStra
   const stressFlipProfit = stressArv - d.purchasePrice - buyClosing - stressRehab - stressRehabContingency - holding - stressSellClosing - riskReserves;
   const stressAnnualRate = d.interestRate + 2;
   const stressRate = stressAnnualRate / 100 / 12;
-  const stressMortgage = loan <= 0 ? 0 : stressRate === 0
-    ? loan / payments
-    : loan * stressRate * Math.pow(1 + stressRate, payments) / (Math.pow(1 + stressRate, payments) - 1);
+  const stressMortgage = operatingLoan <= 0 ? 0 : stressRate === 0
+    ? operatingLoan / payments
+    : operatingLoan * stressRate * Math.pow(1 + stressRate, payments) / (Math.pow(1 + stressRate, payments) - 1);
   const stressRent = d.monthlyRent * 0.9;
   const stressVacancy = stressRent * safePct(d.vacancyPct);
   const stressManagement = stressRent * safePct(d.managementPct);
@@ -113,7 +120,7 @@ export function calculateDealAnalysis(raw: DealAnalysisInput, strategy: DealStra
   ].filter(Boolean) as string[];
 
   return {
-    down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, annualDebtService, dscr, loanToValue,
+    down, loan, mortgage: operatingMortgage, acquisitionMortgage: mortgage, monthlyExpenses, cashFlow, annualNoi, annualDebtService, dscr, loanToValue,
     cashNeeded, rentalBasis, capRate, cashOnCash, flipProfit, flipRoi, totalProjectCost, targetProfit,
     riskReserves, mao, refiGross, refiClosing, refiNet, remainingLoan, cashBackFromRefi, cashLeftIn,
     buyClosing, sellClosing, rehabContingency, holding, warnings,
