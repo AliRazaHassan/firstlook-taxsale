@@ -91,6 +91,28 @@ function run() {
   assert.equal(bid.maxBid, 115686, "max bid should solve buy-side closing costs against the offer");
   assert(Math.abs(bid.projectedProfit - 30000) <= 2, "projected profit should stay at the target after rounding");
 
+  const baseRiskBid = calculateMaxBid({
+    arv: 200000,
+    rehab: 25000,
+    holdingMonths: 4,
+    monthlyHolding: 500,
+    desiredProfit: 30000,
+    contingency: 2500,
+  });
+  const reservedRiskBid = calculateMaxBid({
+    arv: 200000,
+    rehab: 25000,
+    holdingMonths: 4,
+    monthlyHolding: 500,
+    desiredProfit: 30000,
+    contingency: 5000,
+    titleLegal: 5000,
+    survivingLiens: 10000,
+    auctionFees: 1500,
+  });
+  assert(reservedRiskBid.maxBid < baseRiskBid.maxBid, "additional risk reserves and contingency must lower the max bid");
+  assert(reservedRiskBid.totalCosts > baseRiskBid.totalCosts, "risk reserves must increase modeled total costs");
+
   const safe = calculateMaxBid({
     arv: -1,
     rehab: -10,

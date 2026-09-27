@@ -634,7 +634,7 @@
 .moduleMetrics p>em{margin-left:0;width:max-content}
 .moduleActions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
 .compRows{display:grid;gap:.55rem}
-.compRow{display:grid;grid-template-columns:58px minmax(135px,1.5fr) minmax(90px,.8fr) minmax(75px,.65fr) minmax(65px,.55fr) minmax(105px,.8fr) 70px;gap:.4rem;align-items:center;padding:.55rem;border:1px solid #e0e4df;border-radius:8px;background:#fbfcfa}
+.compRow{display:grid;grid-template-columns:58px minmax(135px,1.5fr) minmax(90px,.8fr) minmax(75px,.65fr) minmax(65px,.55fr) minmax(105px,.8fr) 70px 30px;gap:.4rem;align-items:center;padding:.55rem;border:1px solid #e0e4df;border-radius:8px;background:#fbfcfa}
 .compRow input{min-width:0;width:100%;box-sizing:border-box}
 .compRow>strong{font-size:.72rem;color:#445149}
 .compRow>span{text-align:right;font-size:.72rem}
@@ -651,8 +651,8 @@
 .pipelineStages button{padding:.5rem .65rem;border:1px solid #d5d9d3;border-radius:999px;background:#fff;font-size:.78rem;cursor:pointer}
 .pipelineStages button:hover{border-color:#0a5746}
 .pipelineNote{width:100%;box-sizing:border-box;resize:vertical}
-@media(max-width:1100px){.compRow{grid-template-columns:55px minmax(120px,1.5fr) repeat(3,minmax(80px,1fr));}.compRow>span{grid-column:2/-1;text-align:left}.compRow input:nth-of-type(5){grid-column:auto}}
-@media(max-width:720px){.moduleMetrics,.rehabGrid{grid-template-columns:1fr}.compRow{grid-template-columns:1fr 1fr}.compRow>strong,.compRow input:first-of-type,.compRow>span{grid-column:1/-1}.moduleActions .btn{flex:1 1 100%}}
+@media(max-width:1100px){.compRow{grid-template-columns:55px minmax(120px,1.5fr) repeat(3,minmax(80px,1fr)) 30px;}.compRow>span{grid-column:2/-1;text-align:left}.compRow input:nth-of-type(5){grid-column:auto}}
+@media(max-width:720px){.moduleMetrics,.rehabGrid,.stressMetrics{grid-template-columns:1fr}.compRow{grid-template-columns:1fr 1fr}.compRow>strong,.compRow input:first-of-type,.compRow>span{grid-column:1/-1}.moduleActions .btn{flex:1 1 100%}}
 
 /* Copilot developer controls stay out of the investor flow until explicitly opened */
 .copilotAdmin{display:block;padding:.55rem 1rem;border-top:1px solid #e0e3de;background:#f6f8f9}
@@ -661,3 +661,17 @@
 .copilotAdmin>div span{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#52606d;white-space:nowrap}
 .copilotAdmin input{min-width:0;width:100%;box-sizing:border-box}
 @media(max-width:640px){.copilotAdmin>div{grid-template-columns:1fr}.copilotAdmin>div span{white-space:normal}}
+
+
+/* Comp evidence controls + deterministic stress testing */
+.compRemove{border:0;background:#f3f5f3;color:#667168;width:28px;height:28px;border-radius:999px;cursor:pointer;font-size:1rem;line-height:1}
+.compRemove:hover:not(:disabled){background:#f7eaea;color:#8b2f2f}
+.compRemove:disabled{opacity:.35;cursor:not-allowed}
+.compQualityOk{margin:.75rem 0;padding:.65rem .75rem;border:1px solid #bfd9ca;background:#f1faf5;color:#285a3e;border-radius:7px;font-size:.75rem}
+.stressPanel{margin:1rem 0;padding:.85rem;border:1px solid #e0d4ab;background:#fffaf0;border-radius:9px}
+.stressPanel>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap}
+.stressPanel>div:first-child strong{font-size:.78rem;color:#735a19}
+.stressMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.45rem;margin-top:.65rem}
+.stressMetrics p{display:grid;gap:.12rem;margin:0;padding:.55rem;border:1px solid #eadfb9;background:#fff;border-radius:7px}
+.stressMetrics span{font-size:.64rem;text-transform:uppercase;letter-spacing:.04em;color:#7a735e}
+.stressMetrics strong{font-size:.88rem}
