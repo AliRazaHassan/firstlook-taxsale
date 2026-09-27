@@ -130,6 +130,7 @@ export function scoreProperty(args: {
   }
 
   const totalWeight = w.equitySpread + w.taxBurden + w.delinquencyYears + w.propertyType + w.neighborhoodValue;
+  if (totalWeight <= 0) return 0;
   const raw =
     (equityScore * w.equitySpread +
       taxScore * w.taxBurden +
