@@ -9,7 +9,9 @@
     "start": "next start --hostname 0.0.0.0",
     "research": "tsx src-cli/index.ts",
     "research:sheets": "tsx src-cli/index.ts --sheets",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "qa": "tsx scripts/qa.ts",
+    "prebuild": "npm run qa"
   },
   "engines": {
     "node": ">=20"
