@@ -826,7 +826,7 @@ export default function AppPage() {
         ? "firstlook-auction-bid-sheet.csv"
         : format === "filtered"
           ? "firstlook-filtered.csv"
-          : "firstlook-look-first.csv";
+          : "firstlook-all.csv";
     a.click();
     URL.revokeObjectURL(url);
     setStatus(`Exported ${properties.length} rows`);
