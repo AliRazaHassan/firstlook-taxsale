@@ -32,15 +32,15 @@ export type BuyBox = z.infer<typeof BuyBoxSchema>;
 
 export const InputPropertySchema = z.object({
   sale_date: z.string().default(""),
-  parcel_id: z.string().min(1),
-  owner: z.string().default(""),
-  address: z.string().min(1),
-  tax_years: z.string().default(""),
-  assessed_fmv: z.coerce.number(),
-  cry_out_bid: z.coerce.number(),
-  property_type_hint: z.string().default("unknown"),
-  county: z.string().default("Clayton"),
-  state: z.string().default("GA"),
+  parcel_id: z.string().trim().min(1).max(120),
+  owner: z.string().trim().max(250).default(""),
+  address: z.string().trim().min(1).max(300),
+  tax_years: z.string().trim().max(250).default(""),
+  assessed_fmv: z.coerce.number().finite().min(0).max(100_000_000),
+  cry_out_bid: z.coerce.number().finite().min(0).max(100_000_000),
+  property_type_hint: z.string().trim().max(120).default("unknown"),
+  county: z.string().trim().min(2).max(100),
+  state: z.string().trim().min(2).max(40),
   city_hint: z.string().optional().default(""),
 });
 
