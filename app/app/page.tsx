@@ -450,13 +450,22 @@ export default function AppPage() {
   const liveBidPreview = useMemo(() => {
     if (!selected) return null;
     const arv = selected.estimatedMarketMid ?? selected.assessed_fmv;
+    const b = normalizeBidDefaults(bidDefaults);
     return calculateMaxBid({
       arv,
-      rehab: bidDefaults.rehab,
-      holdingMonths: bidDefaults.holdingMonths,
-      monthlyHolding: bidDefaults.monthlyHolding,
-      desiredProfit: Math.round(arv * (bidDefaults.desiredProfitPct / 100)),
+      rehab: b.rehab,
+      holdingMonths: b.holdingMonths,
+      monthlyHolding: b.monthlyHolding,
+      closingBuyPct: b.closingBuyPct / 100,
+      closingSellPct: b.closingSellPct / 100,
+      desiredProfit: Math.round(arv * (b.desiredProfitPct / 100)),
+      contingency: Math.round(b.rehab * (b.contingencyPct / 100)),
       cryOutBid: selected.cry_out_bid,
+      titleLegal: b.titleLegal,
+      survivingLiens: b.survivingLiens,
+      evictionPossession: b.evictionPossession,
+      auctionFees: b.auctionFees,
+      redemptionCarry: b.redemptionCarry,
     });
   }, [selected, bidDefaults]);
 
@@ -578,13 +587,22 @@ export default function AppPage() {
 
   function recalcMaxBid(property: ScoredProperty) {
     const arv = property.estimatedMarketMid ?? property.assessed_fmv;
+    const b = normalizeBidDefaults(bidDefaults);
     const json = calculateMaxBid({
       arv,
-      rehab: bidDefaults.rehab,
-      holdingMonths: bidDefaults.holdingMonths,
-      monthlyHolding: bidDefaults.monthlyHolding,
-      desiredProfit: Math.round(arv * (bidDefaults.desiredProfitPct / 100)),
+      rehab: b.rehab,
+      holdingMonths: b.holdingMonths,
+      monthlyHolding: b.monthlyHolding,
+      closingBuyPct: b.closingBuyPct / 100,
+      closingSellPct: b.closingSellPct / 100,
+      desiredProfit: Math.round(arv * (b.desiredProfitPct / 100)),
+      contingency: Math.round(b.rehab * (b.contingencyPct / 100)),
       cryOutBid: property.cry_out_bid,
+      titleLegal: b.titleLegal,
+      survivingLiens: b.survivingLiens,
+      evictionPossession: b.evictionPossession,
+      auctionFees: b.auctionFees,
+      redemptionCarry: b.redemptionCarry,
     });
     const bidUpdated: ScoredProperty = {
       ...property,
@@ -845,134 +863,114 @@ export default function AppPage() {
           {sideTab === "buybox" ? (
             <>
               <h2>Your buy box</h2>
-              <p className="muted">This is how FirstLook decides what “good” means for you.</p>
+              <p className="muted">Control what qualifies for Look First. Hard limits filter deals; weights only change ranking.</p>
 
-              <div className="field">
-                <label>Min assessed value ($)</label>
-                <input
-                  type="number"
-                  value={buyBox.minAssessedValue}
-                  onChange={(e) =>
-                    setBuyBox((b) => ({ ...b, minAssessedValue: Number(e.target.value) || 0 }))
-                  }
-                />
+              <div className={styles.sidebarGrid}>
+                <div className="field">
+                  <label>Min assessed value ($)</label>
+                  <input type="number" min="0" value={buyBox.minAssessedValue}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, minAssessedValue: Math.max(0, Number(e.target.value) || 0) }))} />
+                </div>
+                <div className="field">
+                  <label>Max cry-out ($) · 0 = no cap</label>
+                  <input type="number" min="0" value={buyBox.maxCryOutBid}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, maxCryOutBid: Math.max(0, Number(e.target.value) || 0) }))} />
+                </div>
+                <div className="field">
+                  <label>Min equity spread %</label>
+                  <input type="number" min="-100" max="100" step="1" value={Math.round(buyBox.minEquitySpread * 100)}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, minEquitySpread: Math.max(-1, Math.min(1, (Number(e.target.value) || 0) / 100)) }))} />
+                </div>
+                <div className="field">
+                  <label>Target equity spread %</label>
+                  <input type="number" min="1" max="100" step="1" value={Math.round(buyBox.targetEquitySpreadMin * 100)}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, targetEquitySpreadMin: Math.max(0.01, Math.min(1, (Number(e.target.value) || 1) / 100)) }))} />
+                </div>
+                <div className="field">
+                  <label>Min Look First score</label>
+                  <input type="number" min="0" max="100" value={buyBox.minLookFirstScore}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, minLookFirstScore: Math.max(0, Math.min(100, Number(e.target.value) || 0)) }))} />
+                </div>
+                <div className="field">
+                  <label>Max Look First deals</label>
+                  <input type="number" min="1" max="25" value={buyBox.maxLookFirst}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, maxLookFirst: Math.max(1, Math.min(25, Math.round(Number(e.target.value) || 1))) }))} />
+                </div>
+                <div className="field">
+                  <label>Max cry-out / assessed FMV %</label>
+                  <input type="number" min="0.1" max="100" step="0.1" value={Math.round(buyBox.maxTaxBurdenRatio * 1000) / 10}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, maxTaxBurdenRatio: Math.max(0.001, Math.min(1, (Number(e.target.value) || 0.1) / 100)) }))} />
+                </div>
               </div>
-              <div className="field">
-                <label>Max tax burden % of FMV</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={Math.round(buyBox.maxTaxBurdenRatio * 1000) / 10}
-                  onChange={(e) =>
-                    setBuyBox((b) => ({
-                      ...b,
-                      maxTaxBurdenRatio: (Number(e.target.value) || 0) / 100,
-                    }))
-                  }
-                />
-              </div>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={buyBox.preferResidential}
-                  onChange={(e) => setBuyBox((b) => ({ ...b, preferResidential: e.target.checked }))}
-                />
-                Prefer residential
-              </label>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={buyBox.avoidVacantLand}
-                  onChange={(e) => setBuyBox((b) => ({ ...b, avoidVacantLand: e.target.checked }))}
-                />
-                Avoid vacant / low-value land
-              </label>
-              <label className={styles.check}>
-                <input
-                  type="checkbox"
-                  checked={buyBox.avoidLlcInvestorOwned}
-                  onChange={(e) =>
-                    setBuyBox((b) => ({ ...b, avoidLlcInvestorOwned: e.target.checked }))
-                  }
-                />
-                Soft-penalize LLC / investor owners
-              </label>
 
-              <button
-                className="btn btn-primary"
-                style={{ width: "100%", marginTop: "0.8rem" }}
-                onClick={() => applyBuyBoxAndBids()}
-                disabled={!data}
-              >
-                Apply buy box to list
-              </button>
+              <label className={styles.check}><input type="checkbox" checked={buyBox.preferResidential}
+                onChange={(e) => setBuyBox((b) => ({ ...b, preferResidential: e.target.checked }))} />Prefer residential</label>
+              <label className={styles.check}><input type="checkbox" checked={buyBox.avoidVacantLand}
+                onChange={(e) => setBuyBox((b) => ({ ...b, avoidVacantLand: e.target.checked }))} />Avoid vacant / low-value land</label>
+              <label className={styles.check}><input type="checkbox" checked={buyBox.avoidLlcInvestorOwned}
+                onChange={(e) => setBuyBox((b) => ({ ...b, avoidLlcInvestorOwned: e.target.checked }))} />Soft-penalize LLC / investor owners</label>
+
+              <details className={styles.advancedBox}>
+                <summary>Advanced scoring + red-flag controls</summary>
+                <div className={styles.sidebarGrid}>
+                  <div className="field"><label>Low-value flag below ($)</label><input type="number" min="0" value={buyBox.redFlags.lowAssessedValue}
+                    onChange={(e)=>setBuyBox((b)=>({...b,redFlags:{...b.redFlags,lowAssessedValue:Math.max(0,Number(e.target.value)||0)}}))}/></div>
+                  <div className="field"><label>High cry-out/FMV flag %</label><input type="number" min="0" max="100" step="0.1" value={Math.round(buyBox.redFlags.highTaxBurdenRatio*1000)/10}
+                    onChange={(e)=>setBuyBox((b)=>({...b,redFlags:{...b.redFlags,highTaxBurdenRatio:Math.max(0,Math.min(1,(Number(e.target.value)||0)/100))}}))}/></div>
+                  <div className="field"><label>Long delinquency flag (years)</label><input type="number" min="1" max="50" value={buyBox.redFlags.longDelinquencyYears}
+                    onChange={(e)=>setBuyBox((b)=>({...b,redFlags:{...b.redFlags,longDelinquencyYears:Math.max(1,Math.min(50,Math.round(Number(e.target.value)||1)))}}))}/></div>
+                  {([
+                    ["equitySpread","Equity spread weight"],
+                    ["taxBurden","Cry-out/FMV weight"],
+                    ["delinquencyYears","Delinquency weight"],
+                    ["propertyType","Property type weight"],
+                    ["neighborhoodValue","Neighborhood context weight"],
+                  ] as const).map(([key,label])=><div className="field" key={key}><label>{label}</label><input type="number" min="0" max="100" value={buyBox.weights[key]}
+                    onChange={(e)=>setBuyBox((b)=>({...b,weights:{...b.weights,[key]:Math.max(0,Math.min(100,Number(e.target.value)||0))}}))}/></div>)}
+                </div>
+              </details>
+
+              <button className="btn btn-primary" style={{ width: "100%", marginTop: "0.8rem" }}
+                onClick={() => applyBuyBoxAndBids()} disabled={!data}>Apply buy box to list</button>
             </>
           ) : null}
 
           {sideTab === "bid" ? (
             <>
               <h2>Max bid settings</h2>
-              <p className="muted">Stops overbidding — the #1 auction money leak.</p>
-              <div className="field">
-                <label>Default rehab ($)</label>
-                <input
-                  type="number"
-                  value={bidDefaults.rehab}
-                  onChange={(e) =>
-                    setBidDefaults((b) => ({ ...b, rehab: Number(e.target.value) || 0 }))
-                  }
-                />
-              </div>
-              <div className="field">
-                <label>Holding months</label>
-                <input
-                  type="number"
-                  value={bidDefaults.holdingMonths}
-                  onChange={(e) =>
-                    setBidDefaults((b) => ({ ...b, holdingMonths: Number(e.target.value) || 0 }))
-                  }
-                />
-              </div>
-              <div className="field">
-                <label>Monthly holding ($)</label>
-                <input
-                  type="number"
-                  value={bidDefaults.monthlyHolding}
-                  onChange={(e) =>
-                    setBidDefaults((b) => ({ ...b, monthlyHolding: Number(e.target.value) || 0 }))
-                  }
-                />
-              </div>
-              <div className="field">
-                <label>Desired profit % of ARV</label>
-                <input
-                  type="number"
-                  value={bidDefaults.desiredProfitPct}
-                  onChange={(e) =>
-                    setBidDefaults((b) => ({
-                      ...b,
-                      desiredProfitPct: Number(e.target.value) || 0,
-                    }))
-                  }
-                />
+              <p className="muted">Build a hard ceiling from rehab, carrying, transaction, legal and tax-sale risk costs.</p>
+              <div className={styles.sidebarGrid}>
+                {([
+                  ["rehab","Default rehab ($)",1],
+                  ["holdingMonths","Holding months",1],
+                  ["monthlyHolding","Monthly holding ($)",1],
+                  ["desiredProfitPct","Desired profit % of ARV",0.5],
+                  ["closingBuyPct","Buy closing %",0.1],
+                  ["closingSellPct","Sell closing %",0.1],
+                  ["contingencyPct","Rehab contingency %",0.5],
+                  ["titleLegal","Title / legal reserve ($)",1],
+                  ["survivingLiens","Potential surviving liens ($)",1],
+                  ["evictionPossession","Possession / eviction reserve ($)",1],
+                  ["auctionFees","Auction / deed fees ($)",1],
+                  ["redemptionCarry","Redemption carry reserve ($)",1],
+                ] as const).map(([key,label,step]) => (
+                  <div className="field" key={key}>
+                    <label>{label}</label>
+                    <input type="number" min="0" step={step} value={bidDefaults[key]}
+                      onChange={(e)=>setBidDefaults((b)=>normalizeBidDefaults({...b,[key]:Number(e.target.value)||0}))}/>
+                  </div>
+                ))}
               </div>
               {liveBidPreview && selected ? (
                 <div className={styles.bidPreview}>
                   <span className="muted">Live preview · {selected.cleanAddress}</span>
                   <strong className="mono">{money(liveBidPreview.maxBid)}</strong>
-                  <span className="muted">
-                    Profit at ceiling ≈ {money(liveBidPreview.projectedProfit)}
-                  </span>
+                  <span className="muted">Profit at ceiling ≈ {money(liveBidPreview.projectedProfit)}</span>
+                  <span className="muted">Risk reserves included ≈ {money(bidDefaults.titleLegal + bidDefaults.survivingLiens + bidDefaults.evictionPossession + bidDefaults.auctionFees + bidDefaults.redemptionCarry)}</span>
                 </div>
               ) : null}
-              <button
-                className="btn btn-primary"
-                style={{ width: "100%", marginTop: "0.8rem" }}
-                onClick={() => applyBuyBoxAndBids()}
-                disabled={!data}
-              >
-                Apply max bids to whole list
-              </button>
+              <button className="btn btn-primary" style={{ width: "100%", marginTop: "0.8rem" }}
+                onClick={() => applyBuyBoxAndBids()} disabled={!data}>Apply max bids to whole list</button>
             </>
           ) : null}
 
