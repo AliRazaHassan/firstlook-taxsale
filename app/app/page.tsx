@@ -160,7 +160,7 @@ function isOverbidRisk(p: ScoredProperty): boolean {
   return p.maxBid == null || p.maxBid <= 0 || p.cry_out_bid >= p.maxBid;
 }
 
-const DEAL_PERCENT_FIELDS = new Set(["downPaymentPct","interestRate","vacancyPct","managementPct","buyClosingPct","sellClosingPct","contingencyPct","refiLtvPct","refiClosingPct"]);
+const DEAL_PERCENT_FIELDS = new Set(["downPaymentPct","interestRate","vacancyPct","managementPct","buyClosingPct","sellClosingPct","contingencyPct","refiLtvPct","refiClosingPct","targetProfitPct"]);
 function normalizeDealInput(key: string, raw: number): number {
   const value = Number.isFinite(raw) ? raw : 0;
   if (DEAL_PERCENT_FIELDS.has(key)) return Math.max(0, Math.min(100, value));
@@ -173,7 +173,7 @@ export default function AppPage() {
   const [data, setData] = useState<ResearchResponse | null>(null);
   const [osModule, setOsModule] = useState<OsModule>("taxsale");
   const [dealStrategy, setDealStrategy] = useState<DealStrategy>("flip");
-  const [dealInputs, setDealInputs] = useState({ purchasePrice: 0, arv: 0, rehab: 25000, monthlyRent: 0, downPaymentPct: 20, interestRate: 7.5, loanYears: 30, vacancyPct: 5, managementPct: 8, taxesMonthly: 0, insuranceMonthly: 0, otherMonthly: 0, buyClosingPct: 2, sellClosingPct: 8, holdingMonths: 6, monthlyHolding: 650, contingencyPct: 10, refiLtvPct: 75, refiClosingPct: 3 });
+  const [dealInputs, setDealInputs] = useState({ purchasePrice: 0, arv: 0, rehab: 25000, monthlyRent: 0, downPaymentPct: 20, interestRate: 7.5, loanYears: 30, vacancyPct: 5, managementPct: 8, taxesMonthly: 0, insuranceMonthly: 0, otherMonthly: 0, buyClosingPct: 2, sellClosingPct: 8, holdingMonths: 6, monthlyHolding: 650, contingencyPct: 10, targetProfitPct: 15, refiLtvPct: 75, refiClosingPct: 3, titleLegal: 0, survivingLiens: 0, evictionPossession: 0, auctionFees: 0, redemptionCarry: 0 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>("all");
@@ -415,7 +415,35 @@ export default function AppPage() {
 
   useEffect(() => {
     if (!selected) return;
-    setDealInputs((v) => ({ ...v, purchasePrice: selected.cry_out_bid, arv: selected.estimatedMarketMid ?? selected.assessed_fmv, rehab: bidDefaults.rehab, monthlyRent: 0, taxesMonthly: 0, insuranceMonthly: 0 }));
+    const b = normalizeBidDefaults(bidDefaults);
+    setDealInputs((v) => ({
+      ...v,
+      purchasePrice: selected.cry_out_bid,
+      arv: selected.estimatedMarketMid ?? selected.assessed_fmv,
+      rehab: b.rehab,
+      monthlyRent: 0,
+      taxesMonthly: 0,
+      insuranceMonthly: 0,
+      buyClosingPct: b.closingBuyPct,
+      sellClosingPct: b.closingSellPct,
+      contingencyPct: b.contingencyPct,
+      targetProfitPct: b.desiredProfitPct,
+      titleLegal: b.titleLegal,
+      survivingLiens: b.survivingLiens,
+      evictionPossession: b.evictionPossession,
+      auctionFees: b.auctionFees,
+      redemptionCarry: b.redemptionCarry,
+    }));
+    setSubjectSqft(0);
+    setManualComps([
+      { id: 1, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
+      { id: 2, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
+      { id: 3, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
+    ]);
+    setRehabItems({
+      roof: 0, hvac: 0, kitchen: 0, bathrooms: 0, flooringPaint: 0,
+      electricalPlumbing: 0, exterior: 0, permitsOther: b.rehab,
+    });
   }, [selected?.parcel_id]);
 
   const compAnalysis = useMemo(() => {
@@ -483,15 +511,17 @@ export default function AppPage() {
     const buyClosing = d.purchasePrice * safePct(d.buyClosingPct);
     const rehabContingency = d.rehab * safePct(d.contingencyPct);
     const holding = Math.max(0, d.holdingMonths) * Math.max(0, d.monthlyHolding);
-    const cashNeeded = down + buyClosing + d.rehab + rehabContingency + holding;
-    const capRate = d.purchasePrice > 0 ? annualNoi / d.purchasePrice : 0;
+    const riskReserves = d.titleLegal + d.survivingLiens + d.evictionPossession + d.auctionFees + d.redemptionCarry;
+    const cashNeeded = down + buyClosing + d.rehab + rehabContingency + holding + riskReserves;
+    const rentalBasis = d.purchasePrice + buyClosing + d.rehab + rehabContingency + riskReserves;
+    const capRate = rentalBasis > 0 ? annualNoi / rentalBasis : 0;
     const cashOnCash = cashNeeded > 0 ? cashFlow * 12 / cashNeeded : 0;
     const sellClosing = d.arv * safePct(d.sellClosingPct);
-    const flipProfit = d.arv - d.purchasePrice - buyClosing - d.rehab - rehabContingency - holding - sellClosing;
-    const totalProjectCost = d.purchasePrice + buyClosing + d.rehab + rehabContingency + holding + sellClosing;
+    const flipProfit = d.arv - d.purchasePrice - buyClosing - d.rehab - rehabContingency - holding - sellClosing - riskReserves;
+    const totalProjectCost = d.purchasePrice + buyClosing + d.rehab + rehabContingency + holding + sellClosing + riskReserves;
     const flipRoi = cashNeeded > 0 ? flipProfit / cashNeeded : 0;
-    const targetProfit = d.arv * 0.15;
-    const beforeBuyClosing = d.arv - sellClosing - d.rehab - rehabContingency - holding - targetProfit;
+    const targetProfit = d.arv * safePct(d.targetProfitPct);
+    const beforeBuyClosing = d.arv - sellClosing - d.rehab - rehabContingency - holding - targetProfit - riskReserves;
     const mao = Math.max(0, beforeBuyClosing / (1 + safePct(d.buyClosingPct)));
     const refiGross = d.arv * safePct(d.refiLtvPct);
     const refiClosing = refiGross * safePct(d.refiClosingPct);
@@ -511,7 +541,7 @@ export default function AppPage() {
       dealStrategy === "brrrr" && refiNet <= remainingLoan ? "Refinance proceeds do not exceed the estimated remaining acquisition loan, so no investor cash-out is modeled." : null,
       "Working ARV is an estimate until property-level sold comps are verified.",
     ].filter(Boolean) as string[];
-    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, annualDebtService, dscr, loanToValue, cashNeeded, capRate, cashOnCash, flipProfit, flipRoi, totalProjectCost, mao, refiGross, refiClosing, refiNet, remainingLoan, cashBackFromRefi, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings };
+    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, annualDebtService, dscr, loanToValue, cashNeeded, rentalBasis, capRate, cashOnCash, flipProfit, flipRoi, totalProjectCost, targetProfit, riskReserves, mao, refiGross, refiClosing, refiNet, remainingLoan, cashBackFromRefi, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings };
   }, [dealInputs, dealStrategy]);
 
   const investorIntel = useMemo(() => {
@@ -519,9 +549,9 @@ export default function AppPage() {
     const diligenceTotal = diligence?.checklist.length ?? 0;
     const diligenceDone = Object.values(checkedItems).filter(Boolean).length;
     const missing: Array<{label:string; module:OsModule; why:string}> = [];
-    if (dealInputs.monthlyRent <= 0) missing.push({ label: "Add market rent", module: "analyzer", why: "Rental and BRRRR returns cannot be trusted without rent." });
-    if (dealInputs.taxesMonthly <= 0) missing.push({ label: "Verify property taxes", module: "diligence", why: "Taxes materially change NOI and cash flow." });
-    if (dealInputs.insuranceMonthly <= 0) missing.push({ label: "Add insurance quote", module: "analyzer", why: "Insurance is still an assumption." });
+    if (dealStrategy !== "flip" && dealInputs.monthlyRent <= 0) missing.push({ label: "Add market rent", module: "analyzer", why: "Rental and BRRRR returns cannot be trusted without rent." });
+    if (dealStrategy !== "flip" && dealInputs.taxesMonthly <= 0) missing.push({ label: "Verify property taxes", module: "diligence", why: "Taxes materially change NOI and cash flow." });
+    if (dealStrategy !== "flip" && dealInputs.insuranceMonthly <= 0) missing.push({ label: "Add insurance quote", module: "analyzer", why: "Insurance is still an assumption." });
     missing.push({ label: "Verify sold comps / ARV", module: "comps", why: "Current ARV is modeled context, not property-level sold comps." });
     if (diligenceDone < diligenceTotal) missing.push({ label: `Finish diligence (${diligenceDone}/${diligenceTotal})`, module: "diligence", why: "Unchecked title, lien, occupancy or auction items can change the deal." });
     const look = props.filter(p=>p.lookAtFirst);
@@ -530,7 +560,7 @@ export default function AppPage() {
     const flagged = props.filter(p=>p.redFlags.length>0).length;
     const selectedReadiness = Math.max(0, 100 - Math.min(100, missing.length * 16));
     return { missing, look, totalModeledValue, totalCryOut, flagged, selectedReadiness };
-  }, [data, diligence, checkedItems, dealInputs.monthlyRent, dealInputs.taxesMonthly, dealInputs.insuranceMonthly]);
+  }, [data, diligence, checkedItems, dealStrategy, dealInputs.monthlyRent, dealInputs.taxesMonthly, dealInputs.insuranceMonthly]);
 
   const liveBidPreview = useMemo(() => {
     if (!selected) return null;
