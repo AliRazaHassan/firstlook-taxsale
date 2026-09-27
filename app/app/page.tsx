@@ -820,6 +820,11 @@ export default function AppPage() {
 
   async function onFile(file: File | null) {
     if (!file) return;
+    if (file.size > 1_000_000) {
+      setError("CSV file exceeds the 1 MB research limit.");
+      setStatus("Upload rejected");
+      return;
+    }
     const text = await file.text();
     setCsvText(text);
     setStatus(`Loaded ${file.name}`);

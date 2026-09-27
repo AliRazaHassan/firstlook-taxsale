@@ -3,6 +3,17 @@ import type { ScoredProperty } from "./types";
 import { resolveCountyRules } from "./countyRules";
 import { overbidRisk, valuationConfidence } from "./diligence";
 
+function spreadsheetSafe(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+}
+
+function safeRow<T extends Record<string, unknown>>(row: T): T {
+  return Object.fromEntries(
+    Object.entries(row).map(([key, value]) => [key, spreadsheetSafe(value)]),
+  ) as T;
+}
+
 /** Auction-day bid sheet — only look-first / selected rows. */
 export function propertiesToBidSheet(properties: ScoredProperty[]): string {
   const rows = properties
@@ -11,7 +22,7 @@ export function propertiesToBidSheet(properties: ScoredProperty[]): string {
       const rules = resolveCountyRules(p.state, p.county);
       const risk = overbidRisk(p);
       const conf = valuationConfidence(p);
-      return {
+      return safeRow({
         rank: p.rank,
         walk_away_max_bid: p.maxBid ?? "",
         cry_out_bid: p.cry_out_bid,
@@ -27,7 +38,7 @@ export function propertiesToBidSheet(properties: ScoredProperty[]): string {
         red_flags: p.redFlags.join(" | "),
         maps: p.googleMapsUrl,
         assessor: p.assessorUrl,
-      };
+      });
     });
 
   return stringify(rows, {
@@ -78,7 +89,7 @@ export function propertiesToCsv(properties: ScoredProperty[]): string {
     "notes",
   ] as const;
 
-  const rows = properties.map((p) => ({
+  const rows = properties.map((p) => safeRow({
     rank: p.rank,
     look_at_first: p.lookAtFirst ? "YES" : "",
     score: p.score,

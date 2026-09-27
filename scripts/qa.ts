@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { calculateMaxBid, normalizeBuyBox, rescoreExisting, InputPropertySchema, type ScoredProperty } from "../lib/engine";
+import { calculateMaxBid, normalizeBuyBox, propertiesToCsv, rescoreExisting, InputPropertySchema, type ScoredProperty } from "../lib/engine";
 import { checkRateLimit } from "../lib/rateLimit";
 
 function synthetic(overrides: Partial<ScoredProperty>): ScoredProperty {
@@ -161,6 +161,18 @@ function run() {
   ], normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1, minBidHeadroomPct: 0 }), { rehab: 25000, desiredProfitPct: 0.15 });
   assert.equal(overMaxRows[0]?.lookAtFirst, false, "a deal at or above modeled max bid must never be Look First");
   assert((overMaxRows[0]?.maxBid ?? 0) <= 90000, "fixture should actually be at or above its modeled ceiling");
+
+  const formulaCsv = propertiesToCsv([
+    synthetic({
+      parcel_id: "=HYPERLINK(\"https://example.invalid\",\"x\")",
+      owner: "+CMD",
+      address: "@SUM(1,1)",
+      cleanAddress: "@SUM(1,1)",
+    }),
+  ]);
+  assert(formulaCsv.includes("'=HYPERLINK"), "CSV export must neutralize formula-like parcel values");
+  assert(formulaCsv.includes("'+CMD"), "CSV export must neutralize formula-like owner values");
+  assert(formulaCsv.includes("'@SUM"), "CSV export must neutralize formula-like address values");
 
   const req = new Request("https://firstlook.local/test", { headers: { "x-forwarded-for": "203.0.113.9" } });
   assert.equal(checkRateLimit(req, "qa-rate", 2, 60000).ok, true, "first request should pass rate limit");
