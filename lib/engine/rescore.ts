@@ -23,7 +23,7 @@ export function rescoreExisting(
       p.assessed_fmv > 0 ? (p.assessed_fmv - p.cry_out_bid) / p.assessed_fmv : 0;
     const delinquencyYears = Number.isFinite(p.delinquencyYears) ? p.delinquencyYears : (p.taxYearsList?.length ?? 0);
     const market = estimateMarketRange(p.assessed_fmv, p.tractMedianHomeValue);
-    const redFlags = collectRedFlags(p, buyBox, propertyType, taxBurdenRatio, delinquencyYears);
+    const redFlags = collectRedFlags(p, buyBox, propertyType, taxBurdenRatio, delinquencyYears, equitySpread);
     const score = scoreProperty({
       property: p,
       buyBox,
