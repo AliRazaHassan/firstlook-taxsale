@@ -662,6 +662,9 @@ export default function AppPage() {
       suggestedArv: compAnalysis.suggestedArv,
       arvRange: { low: compAnalysis.low, high: compAnalysis.high },
       confidence: compAnalysis.confidence,
+      averageDistance: compAnalysis.averageDistance,
+      ppsfSpreadPct: compAnalysis.ppsfSpreadPct,
+      qualityWarnings: compAnalysis.qualityWarnings,
     },
     rehab: {
       items: rehabItems,
@@ -685,6 +688,7 @@ export default function AppPage() {
         dscr: dealAnalysis.dscr,
         loanToValue: dealAnalysis.loanToValue,
       },
+      stress: dealAnalysis.stress,
     },
     diligenceProgress: {
       complete: Object.values(checkedItems).filter(Boolean).length,
