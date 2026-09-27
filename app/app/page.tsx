@@ -1027,7 +1027,24 @@ export default function AppPage() {
                   <div className={styles.outcomeList}>{dealAnalysis.warnings.length ? <div className={styles.analysisWarnings}>{dealAnalysis.warnings.map(w=><p key={w}>⚠ {w}</p>)}</div> : null}
                     {dealStrategy === "flip" ? <><p><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></p><p><span>Investor MAO</span><strong>{money(dealAnalysis.mao)}</strong></p><p><span>Total project cost</span><strong>{money(dealAnalysis.totalProjectCost)}</strong></p><p><span>Risk reserves</span><strong>{money(dealAnalysis.riskReserves)}</strong></p><p><span>Target profit ({dealInputs.targetProfitPct}%)</span><strong>{money(dealAnalysis.targetProfit)}</strong></p><p><span>Cash required</span><strong>{money(dealAnalysis.cashNeeded)}</strong></p><p><span>ROI on modeled cash</span><strong>{pct(dealAnalysis.flipRoi)}</strong></p></> : <><p><span>Mortgage</span><strong>{money(dealAnalysis.mortgage)}/mo</strong></p><p><span>Cash flow</span><strong>{money(dealAnalysis.cashFlow)}/mo</strong></p><p><span>NOI</span><strong>{money(dealAnalysis.annualNoi)}/yr</strong></p><p><span>All-in basis for cap rate</span><strong>{money(dealAnalysis.rentalBasis)}</strong></p><p><span>Cap rate</span><strong>{pct(dealAnalysis.capRate)}</strong></p><p><span>Cash-on-cash</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></p><p><span>DSCR</span><strong>{dealAnalysis.dscr > 0 ? dealAnalysis.dscr.toFixed(2) : "—"}</strong></p>{dealStrategy === "brrrr" ? <><p><span>Gross refinance ({dealInputs.refiLtvPct}% LTV)</span><strong>{money(dealAnalysis.refiGross)}</strong></p><p><span>Estimated loan payoff</span><strong>{money(dealAnalysis.remainingLoan)}</strong></p><p><span>Cash back after payoff</span><strong>{money(dealAnalysis.cashBackFromRefi)}</strong></p><p><span>Cash left in deal</span><strong>{money(dealAnalysis.cashLeftIn)}</strong></p></> : null}</>}
                   </div>
-                  <button className="btn btn-primary" onClick={()=>void askConcierge(`Analyze this ${dealStrategy} scenario. Purchase ${money(dealInputs.purchasePrice)}, ARV ${money(dealInputs.arv)}, rehab ${money(dealInputs.rehab)}, rent ${money(dealInputs.monthlyRent)}. Explain strengths, risks, and which assumptions I should verify.`)}>✦ Ask AI to analyze this deal</button>
+                  <div className={styles.stressPanel}>
+                    <div><span className={styles.eyebrow}>Downside stress</span><strong>{dealStrategy === "flip" ? "ARV −10% · rehab +20%" : "Rent −10% · rate +2 pts"}</strong></div>
+                    {dealStrategy === "flip" ? (
+                      <div className={styles.stressMetrics}>
+                        <p><span>Stress ARV</span><strong>{money(dealAnalysis.stress.arv)}</strong></p>
+                        <p><span>Stress rehab</span><strong>{money(dealAnalysis.stress.rehab)}</strong></p>
+                        <p><span>Stress profit</span><strong>{money(dealAnalysis.stress.flipProfit)}</strong></p>
+                      </div>
+                    ) : (
+                      <div className={styles.stressMetrics}>
+                        <p><span>Stress rent</span><strong>{money(dealAnalysis.stress.rent)}/mo</strong></p>
+                        <p><span>Stress rate</span><strong>{dealAnalysis.stress.interestRate.toFixed(2)}%</strong></p>
+                        <p><span>Stress cash flow</span><strong>{money(dealAnalysis.stress.cashFlow)}/mo</strong></p>
+                        <p><span>Stress DSCR</span><strong>{dealAnalysis.stress.dscr > 0 ? dealAnalysis.stress.dscr.toFixed(2) : "—"}</strong></p>
+                      </div>
+                    )}
+                  </div>
+                  <button className="btn btn-primary" onClick={()=>void askConcierge(`Analyze this ${dealStrategy} scenario and its downside stress case. Purchase ${money(dealInputs.purchasePrice)}, ARV ${money(dealInputs.arv)}, rehab ${money(dealInputs.rehab)}, rent ${money(dealInputs.monthlyRent)}. Explain strengths, risks, break points, and which assumptions I should verify.`)}>✦ Ask AI to analyze this deal</button>
                 </div>
               </div>
             </>
@@ -1046,7 +1063,7 @@ export default function AppPage() {
                   <p className="muted">Enter real sold comps below. FirstLook weights closer comps more heavily, but manual entries are still user-supplied evidence until source documents are attached.</p>
                 </div>
                 <div className="panel">
-                  <h2>Manual sold comps</h2>
+                  <div className={styles.sectionTitle}><div><h2>Manual sold comps</h2><p className="muted">Add up to 8 sold comps. Closer, sourced comps carry more confidence.</p></div><button className="btn btn-ghost" disabled={manualComps.length >= 8} onClick={()=>setManualComps(rows=>[...rows,{id:Math.max(0,...rows.map(row=>row.id))+1,address:"",salePrice:0,sqft:0,distanceMiles:0,adjustment:0}])}>+ Add comp</button></div>
                   <div className={styles.compRows}>
                     {manualComps.map((comp,index)=>{
                       const calc=compAnalysis.valid.find((v)=>v.id===comp.id);
@@ -1058,15 +1075,19 @@ export default function AppPage() {
                         <input aria-label={`Comp ${index+1} distance`} type="number" min="0" step="0.1" placeholder="Miles" value={comp.distanceMiles||""} onChange={(e)=>setManualComps(rows=>rows.map(row=>row.id===comp.id?{...row,distanceMiles:Math.max(0,Number(e.target.value)||0)}:row))}/>
                         <input aria-label={`Comp ${index+1} adjustment`} type="number" step="100" placeholder="Adjustment +/- $" value={comp.adjustment||""} onChange={(e)=>setManualComps(rows=>rows.map(row=>row.id===comp.id?{...row,adjustment:Number(e.target.value)||0}:row))}/>
                         <span className="mono">{calc ? `${Math.round(calc.ppsf).toLocaleString()}/sf` : "—/sf"}</span>
+                        <button className={styles.compRemove} aria-label={`Remove comp ${index+1}`} disabled={manualComps.length <= 1} onClick={()=>setManualComps(rows=>rows.filter(row=>row.id!==comp.id))}>×</button>
                       </div>;
                     })}
                   </div>
                   <div className={styles.moduleMetrics}>
-                    <p><span>Valid comps</span><strong>{compAnalysis.valid.length}/3</strong></p>
+                    <p><span>Valid comps</span><strong>{compAnalysis.valid.length}/{manualComps.length}</strong></p>
                     <p><span>Weighted $/sf</span><strong>{compAnalysis.weightedPpsf ? `${Math.round(compAnalysis.weightedPpsf).toLocaleString()}` : "—"}</strong></p>
                     <p><span>Comp ARV range</span><strong>{compAnalysis.low ? `${money(compAnalysis.low)}–${money(compAnalysis.high)}` : "—"}</strong></p>
                     <p><span>Suggested ARV</span><strong>{money(compAnalysis.suggestedArv)}</strong><em className={styles.evidenceAssumption}>{compAnalysis.confidence} confidence</em></p>
+                    <p><span>Avg comp distance</span><strong>{compAnalysis.valid.length ? `${compAnalysis.averageDistance.toFixed(1)} mi` : "—"}</strong></p>
+                    <p><span>$/sf spread</span><strong>{compAnalysis.valid.length >= 2 ? pct(compAnalysis.ppsfSpreadPct) : "—"}</strong></p>
                   </div>
+                  {compAnalysis.qualityWarnings.length ? <div className={styles.analysisWarnings}>{compAnalysis.qualityWarnings.map(w=><p key={w}>⚠ {w}</p>)}</div> : <div className={styles.compQualityOk}>Comp set passes FirstLook's basic quality checks. Source verification is still required.</div>}
                   <div className={styles.moduleActions}>
                     <button className="btn btn-primary" disabled={!compAnalysis.suggestedArv} onClick={()=>setDealInputs(v=>({...v,arv:compAnalysis.suggestedArv}))}>Use comp ARV in analyzer</button>
                     <button className="btn btn-ghost" onClick={()=>void askConcierge(`Review my manual comp set: subject ${subjectSqft} sqft, weighted price per sqft ${Math.round(compAnalysis.weightedPpsf)}, suggested ARV ${compAnalysis.suggestedArv}. Tell me what makes these comps weak or strong and what evidence is still missing.`)}>✦ Audit comps</button>
