@@ -110,7 +110,7 @@ export default function AppPage() {
   const [data, setData] = useState<ResearchResponse | null>(null);
   const [osModule, setOsModule] = useState<OsModule>("taxsale");
   const [dealStrategy, setDealStrategy] = useState<DealStrategy>("flip");
-  const [dealInputs, setDealInputs] = useState({ purchasePrice: 0, arv: 0, rehab: 25000, monthlyRent: 1600, downPaymentPct: 20, interestRate: 7.5, loanYears: 30, vacancyPct: 5, managementPct: 8, taxesMonthly: 180, insuranceMonthly: 110, otherMonthly: 100 });
+  const [dealInputs, setDealInputs] = useState({ purchasePrice: 0, arv: 0, rehab: 25000, monthlyRent: 0, downPaymentPct: 20, interestRate: 7.5, loanYears: 30, vacancyPct: 5, managementPct: 8, taxesMonthly: 0, insuranceMonthly: 0, otherMonthly: 0, buyClosingPct: 2, sellClosingPct: 8, holdingMonths: 6, monthlyHolding: 650, contingencyPct: 10, refiLtvPct: 75, refiClosingPct: 3 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>("all");
@@ -319,31 +319,47 @@ export default function AppPage() {
 
   useEffect(() => {
     if (!selected) return;
-    setDealInputs((v) => ({ ...v, purchasePrice: selected.cry_out_bid, arv: selected.estimatedMarketMid ?? selected.assessed_fmv, rehab: bidDefaults.rehab }));
+    setDealInputs((v) => ({ ...v, purchasePrice: selected.cry_out_bid, arv: selected.estimatedMarketMid ?? selected.assessed_fmv, rehab: bidDefaults.rehab, monthlyRent: 0, taxesMonthly: 0, insuranceMonthly: 0 }));
   }, [selected?.parcel_id]);
 
   const dealAnalysis = useMemo(() => {
     const d = dealInputs;
-    const down = d.purchasePrice * d.downPaymentPct / 100;
+    const safePct = (n: number) => Math.max(0, Math.min(100, n)) / 100;
+    const down = d.purchasePrice * safePct(d.downPaymentPct);
     const loan = Math.max(0, d.purchasePrice - down);
-    const monthlyRate = d.interestRate / 100 / 12;
-    const payments = Math.max(1, d.loanYears * 12);
+    const monthlyRate = Math.max(0, d.interestRate) / 100 / 12;
+    const payments = Math.max(1, Math.round(Math.max(1, d.loanYears) * 12));
     const mortgage = loan <= 0 ? 0 : monthlyRate === 0 ? loan / payments : loan * monthlyRate * Math.pow(1 + monthlyRate, payments) / (Math.pow(1 + monthlyRate, payments) - 1);
-    const vacancy = d.monthlyRent * d.vacancyPct / 100;
-    const management = d.monthlyRent * d.managementPct / 100;
-    const monthlyExpenses = mortgage + vacancy + management + d.taxesMonthly + d.insuranceMonthly + d.otherMonthly;
+    const vacancy = d.monthlyRent * safePct(d.vacancyPct);
+    const management = d.monthlyRent * safePct(d.managementPct);
+    const monthlyOperating = vacancy + management + d.taxesMonthly + d.insuranceMonthly + d.otherMonthly;
+    const monthlyExpenses = mortgage + monthlyOperating;
     const cashFlow = d.monthlyRent - monthlyExpenses;
-    const annualNoi = (d.monthlyRent - vacancy - management - d.taxesMonthly - d.insuranceMonthly - d.otherMonthly) * 12;
-    const cashNeeded = down + d.rehab + d.purchasePrice * 0.02;
+    const annualNoi = (d.monthlyRent - monthlyOperating) * 12;
+    const buyClosing = d.purchasePrice * safePct(d.buyClosingPct);
+    const rehabContingency = d.rehab * safePct(d.contingencyPct);
+    const holding = Math.max(0, d.holdingMonths) * Math.max(0, d.monthlyHolding);
+    const cashNeeded = down + buyClosing + d.rehab + rehabContingency;
     const capRate = d.purchasePrice > 0 ? annualNoi / d.purchasePrice : 0;
     const cashOnCash = cashNeeded > 0 ? cashFlow * 12 / cashNeeded : 0;
-    const flipSelling = d.arv * 0.06;
-    const flipProfit = d.arv - d.purchasePrice - d.rehab - flipSelling - d.purchasePrice * 0.02;
-    const mao = Math.max(0, d.arv * 0.7 - d.rehab);
-    const refiLoan = d.arv * 0.75;
-    const cashLeftIn = Math.max(0, cashNeeded - refiLoan);
-    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, cashNeeded, capRate, cashOnCash, flipProfit, mao, refiLoan, cashLeftIn };
-  }, [dealInputs]);
+    const sellClosing = d.arv * safePct(d.sellClosingPct);
+    const flipProfit = d.arv - d.purchasePrice - buyClosing - d.rehab - rehabContingency - holding - sellClosing;
+    const targetProfit = d.arv * 0.15;
+    const mao = Math.max(0, d.arv - sellClosing - d.rehab - rehabContingency - holding - targetProfit - (d.arv * safePct(d.buyClosingPct)));
+    const refiGross = d.arv * safePct(d.refiLtvPct);
+    const refiClosing = refiGross * safePct(d.refiClosingPct);
+    const refiNet = Math.max(0, refiGross - refiClosing);
+    const initialCashBasis = cashNeeded + holding;
+    const cashLeftIn = Math.max(0, initialCashBasis - refiNet);
+    const warnings = [
+      d.arv <= 0 ? "Working ARV is missing." : null,
+      d.monthlyRent <= 0 && dealStrategy !== "flip" ? "Monthly rent is missing; rental returns are not decision-ready." : null,
+      d.taxesMonthly <= 0 && dealStrategy !== "flip" ? "Property tax assumption is missing." : null,
+      d.insuranceMonthly <= 0 && dealStrategy !== "flip" ? "Insurance assumption is missing." : null,
+      "Working ARV is an estimate until property-level sold comps are verified.",
+    ].filter(Boolean) as string[];
+    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, cashNeeded, capRate, cashOnCash, flipProfit, mao, refiGross, refiClosing, refiNet, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings };
+  }, [dealInputs, dealStrategy]);
 
   const liveBidPreview = useMemo(() => {
     if (!selected) return null;
@@ -608,21 +624,21 @@ export default function AppPage() {
               <div className={styles.strategyTabs}>{(["flip","rental","brrrr"] as DealStrategy[]).map(s => <button key={s} className={dealStrategy === s ? styles.osNavActive : ""} onClick={() => setDealStrategy(s)}>{s.toUpperCase()}</button>)}</div>
               <div className={styles.osMetrics}>
                 <div onContextMenu={(e)=>openAiContext(e,"Purchase price",money(dealInputs.purchasePrice))}><span>Purchase</span><strong>{money(dealInputs.purchasePrice)}</strong></div>
-                <div onContextMenu={(e)=>openAiContext(e,"ARV",money(dealInputs.arv))}><span>ARV</span><strong>{money(dealInputs.arv)}</strong></div>
-                <div onContextMenu={(e)=>openAiContext(e,"Rehab",money(dealInputs.rehab))}><span>Rehab</span><strong>{money(dealInputs.rehab)}</strong></div>
+                <div onContextMenu={(e)=>openAiContext(e,"Working ARV",money(dealInputs.arv))}><span>Working ARV <em className={styles.evidenceEstimate}>Estimate</em></span><strong>{money(dealInputs.arv)}</strong></div>
+                <div onContextMenu={(e)=>openAiContext(e,"Rehab assumption",money(dealInputs.rehab))}><span>Rehab <em className={styles.evidenceAssumption}>Assumption</em></span><strong>{money(dealInputs.rehab)}</strong></div>
                 {dealStrategy === "flip" ? <><div onContextMenu={(e)=>openAiContext(e,"Flip profit",money(dealAnalysis.flipProfit))}><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></div><div><span>70% MAO</span><strong>{money(dealAnalysis.mao)}</strong></div></> : <><div><span>Cash flow / mo</span><strong>{money(dealAnalysis.cashFlow)}</strong></div><div><span>Cash-on-cash</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></div></>}
               </div>
               <div className={styles.analyzerGrid}>
                 <div className="panel">
-                  <h2>Deal assumptions</h2>
+                  <h2>Deal assumptions</h2><div className={styles.trustNotice}><strong>Evidence-aware analysis</strong><span>Green = public-record input · amber = model estimate · blue = your assumption. Verify comps, rent, taxes, insurance, condition and title before committing capital.</span></div>
                   <div className={styles.inputGrid}>
-                    {([["purchasePrice","Purchase price"],["arv","ARV"],["rehab","Rehab"],["monthlyRent","Monthly rent"],["downPaymentPct","Down payment %"],["interestRate","Interest rate %"],["loanYears","Loan years"],["vacancyPct","Vacancy %"],["managementPct","Management %"],["taxesMonthly","Taxes / mo"],["insuranceMonthly","Insurance / mo"],["otherMonthly","Other / mo"]] as const).map(([key,label]) => <label key={key}><span>{label}</span><input type="number" step="any" value={dealInputs[key]} onChange={(e)=>setDealInputs(v=>({...v,[key]:Number(e.target.value)||0}))}/></label>)}
+                    {([["purchasePrice","Purchase price"],["arv","Working ARV"],["rehab","Base rehab"],["monthlyRent","Monthly rent"],["downPaymentPct","Down payment %"],["interestRate","Interest rate %"],["loanYears","Loan years"],["vacancyPct","Vacancy %"],["managementPct","Management %"],["taxesMonthly","Taxes / mo"],["insuranceMonthly","Insurance / mo"],["otherMonthly","Other / mo"],["buyClosingPct","Buy closing %"],["sellClosingPct","Sell/disposition %"],["holdingMonths","Holding months"],["monthlyHolding","Holding cost / mo"],["contingencyPct","Rehab contingency %"],["refiLtvPct","Refi LTV %"],["refiClosingPct","Refi closing %"]] as const).map(([key,label]) => <label key={key}><span>{label}{key === "arv" ? <em className={styles.evidenceEstimate}>Estimate</em> : key === "purchasePrice" ? <em className={styles.evidencePublic}>Public record</em> : <em className={styles.evidenceAssumption}>Assumption</em>}</span><input min="0" type="number" step="any" value={dealInputs[key]} onChange={(e)=>setDealInputs(v=>({...v,[key]:Math.max(0,Number(e.target.value)||0)}))}/></label>)}
                   </div>
                 </div>
                 <div className="panel">
                   <h2>{dealStrategy === "flip" ? "Flip outcome" : dealStrategy === "rental" ? "Rental outcome" : "BRRRR outcome"}</h2>
-                  <div className={styles.outcomeList}>
-                    {dealStrategy === "flip" ? <><p><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></p><p><span>Maximum allowable offer</span><strong>{money(dealAnalysis.mao)}</strong></p><p><span>Cash needed</span><strong>{money(dealAnalysis.cashNeeded)}</strong></p></> : <><p><span>Mortgage</span><strong>{money(dealAnalysis.mortgage)}/mo</strong></p><p><span>Cash flow</span><strong>{money(dealAnalysis.cashFlow)}/mo</strong></p><p><span>Cap rate</span><strong>{pct(dealAnalysis.capRate)}</strong></p><p><span>Cash-on-cash</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></p>{dealStrategy === "brrrr" ? <><p><span>75% ARV refinance</span><strong>{money(dealAnalysis.refiLoan)}</strong></p><p><span>Cash left in deal</span><strong>{money(dealAnalysis.cashLeftIn)}</strong></p></> : null}</>}
+                  <div className={styles.outcomeList}>{dealAnalysis.warnings.length ? <div className={styles.analysisWarnings}>{dealAnalysis.warnings.map(w=><p key={w}>⚠ {w}</p>)}</div> : null}
+                    {dealStrategy === "flip" ? <><p><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></p><p><span>Maximum allowable offer</span><strong>{money(dealAnalysis.mao)}</strong></p><p><span>Cash needed</span><strong>{money(dealAnalysis.cashNeeded)}</strong></p></> : <><p><span>Mortgage</span><strong>{money(dealAnalysis.mortgage)}/mo</strong></p><p><span>Cash flow</span><strong>{money(dealAnalysis.cashFlow)}/mo</strong></p><p><span>Cap rate</span><strong>{pct(dealAnalysis.capRate)}</strong></p><p><span>Cash-on-cash</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></p>{dealStrategy === "brrrr" ? <><p><span>Gross refinance ({dealInputs.refiLtvPct}% LTV)</span><strong>{money(dealAnalysis.refiGross)}</strong></p><p><span>Net refi after closing</span><strong>{money(dealAnalysis.refiNet)}</strong></p><p><span>Cash left in deal</span><strong>{money(dealAnalysis.cashLeftIn)}</strong></p></> : null}</>}
                   </div>
                   <button className="btn btn-primary" onClick={()=>void askConcierge(`Analyze this ${dealStrategy} scenario. Purchase ${money(dealInputs.purchasePrice)}, ARV ${money(dealInputs.arv)}, rehab ${money(dealInputs.rehab)}, rent ${money(dealInputs.monthlyRent)}. Explain strengths, risks, and which assumptions I should verify.`)}>✦ Ask AI to analyze this deal</button>
                 </div>
@@ -630,7 +646,7 @@ export default function AppPage() {
             </>
           ) : selected ? (
             <div className={styles.moduleGrid}>
-              {osModule === "comps" && <><div className="panel"><h2>Valuation evidence</h2><p>Assessed FMV <strong>{money(selected.assessed_fmv)}</strong></p><p>Estimated market <strong>{money(selected.estimatedMarketMid)}</strong></p><p>Tract median <strong>{money(selected.tractMedianHomeValue)}</strong></p><p className="muted">Property-level sold comps are the next data connector; neighborhood estimates are not treated as verified comps.</p></div><div className="panel"><h2>ARV workspace</h2><p>Working ARV <strong>{money(dealInputs.arv)}</strong></p><button className="btn btn-primary" onClick={()=>setOsModule("analyzer")}>Use in analyzer</button></div></>}
+              {osModule === "comps" && <><div className="panel"><h2>Valuation evidence</h2><p>Assessed FMV <strong>{money(selected.assessed_fmv)}</strong></p><p>Modeled market context <strong>{money(selected.estimatedMarketMid)}</strong> <em className={styles.evidenceEstimate}>Estimate</em></p><p>ACS tract median <strong>{money(selected.tractMedianHomeValue)}</strong> <em className={styles.evidencePublic}>Public data</em></p><p className="muted">Property-level sold comps are the next data connector; neighborhood estimates are not treated as verified comps.</p></div><div className="panel"><h2>ARV workspace</h2><p>Working ARV <strong>{money(dealInputs.arv)}</strong> <em className={styles.evidenceEstimate}>Unverified estimate</em></p><button className="btn btn-primary" onClick={()=>setOsModule("analyzer")}>Use in analyzer</button></div></>}
               {osModule === "rehab" && <div className="panel"><h2>Rehab budget</h2><p>Current working budget <strong>{money(dealInputs.rehab)}</strong></p><input type="number" value={dealInputs.rehab} onChange={e=>setDealInputs(v=>({...v,rehab:Number(e.target.value)||0}))}/><p className="muted">Changes flow directly into Flip / Rental / BRRRR analysis.</p></div>}
               {osModule === "financing" && <div className="panel"><h2>Financing scenario</h2><p>Loan <strong>{money(dealAnalysis.loan)}</strong></p><p>Down payment <strong>{money(dealAnalysis.down)}</strong></p><p>Payment <strong>{money(dealAnalysis.mortgage)}/mo</strong></p><button className="btn btn-primary" onClick={()=>setOsModule("analyzer")}>Edit financing assumptions</button></div>}
               {osModule === "diligence" && <div className="panel"><h2>Diligence status</h2><p><strong>{Object.values(checkedItems).filter(Boolean).length}/{diligence?.checklist.length ?? 0}</strong> checks complete</p><p>{diligence?.rules.label}</p><button className="btn btn-primary" onClick={()=>void askConcierge("Review the current diligence checklist and tell me what remains unverified and why it matters.")}>✦ Review with AI</button></div>}
