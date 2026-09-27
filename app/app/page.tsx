@@ -45,6 +45,20 @@ type OsModule = "taxsale" | "property360" | "analyzer" | "comps" | "rehab" | "fi
 type DealStrategy = "flip" | "rental" | "brrrr";
 type ConciergeMessage = { role: "user" | "assistant"; text: string };
 type AiContextMenu = { x: number; y: number; label: string; value: string } | null;
+type ManualComp = { id: number; address: string; salePrice: number; sqft: number; distanceMiles: number; adjustment: number };
+type RehabKey = "roof" | "hvac" | "kitchen" | "bathrooms" | "flooringPaint" | "electricalPlumbing" | "exterior" | "permitsOther";
+
+const PIPELINE_STAGES = ["New","Researching","Due diligence","Offer","Under contract","Rehab","Listed / Rented","Exited"] as const;
+const REHAB_LABELS: Record<RehabKey,string> = {
+  roof: "Roof",
+  hvac: "HVAC",
+  kitchen: "Kitchen",
+  bathrooms: "Bathrooms",
+  flooringPaint: "Flooring + paint",
+  electricalPlumbing: "Electrical + plumbing",
+  exterior: "Exterior / landscaping",
+  permitsOther: "Permits + other",
+};
 
 type DiligencePayload = {
   rules: {
@@ -181,6 +195,18 @@ export default function AppPage() {
   const [engineerRequest, setEngineerRequest] = useState("");
   const [engineerResult, setEngineerResult] = useState("");
   const [engineerLoading, setEngineerLoading] = useState(false);
+  const [subjectSqft, setSubjectSqft] = useState(0);
+  const [manualComps, setManualComps] = useState<ManualComp[]>([
+    { id: 1, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
+    { id: 2, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
+    { id: 3, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
+  ]);
+  const [rehabItems, setRehabItems] = useState<Record<RehabKey,number>>({
+    roof: 0, hvac: 0, kitchen: 0, bathrooms: 0, flooringPaint: 0,
+    electricalPlumbing: 0, exterior: 0, permitsOther: 25000,
+  });
+  const [pipelineStage, setPipelineStage] = useState<(typeof PIPELINE_STAGES)[number]>("Researching");
+  const [pipelineNote, setPipelineNote] = useState("");
   const conciergeScrollRef = useRef<HTMLDivElement | null>(null);
 
   const buyBoxRef = useRef(buyBox);
@@ -383,6 +409,51 @@ export default function AppPage() {
     setDealInputs((v) => ({ ...v, purchasePrice: selected.cry_out_bid, arv: selected.estimatedMarketMid ?? selected.assessed_fmv, rehab: bidDefaults.rehab, monthlyRent: 0, taxesMonthly: 0, insuranceMonthly: 0 }));
   }, [selected?.parcel_id]);
 
+  const compAnalysis = useMemo(() => {
+    const valid = manualComps
+      .filter((comp) => comp.salePrice > 0 && comp.sqft > 0)
+      .map((comp) => {
+        const adjustedPrice = Math.max(0, comp.salePrice + comp.adjustment);
+        const ppsf = adjustedPrice / comp.sqft;
+        const weight = 1 / (1 + Math.max(0, comp.distanceMiles));
+        return { ...comp, adjustedPrice, ppsf, weight };
+      });
+    const weightTotal = valid.reduce((sum, comp) => sum + comp.weight, 0);
+    const weightedPpsf = weightTotal > 0 ? valid.reduce((sum, comp) => sum + comp.ppsf * comp.weight, 0) / weightTotal : 0;
+    const suggestedArv = subjectSqft > 0 && weightedPpsf > 0 ? Math.round(subjectSqft * weightedPpsf) : 0;
+    const lowPpsf = valid.length ? Math.min(...valid.map((comp) => comp.ppsf)) : 0;
+    const highPpsf = valid.length ? Math.max(...valid.map((comp) => comp.ppsf)) : 0;
+    const low = subjectSqft > 0 && lowPpsf > 0 ? Math.round(subjectSqft * lowPpsf) : 0;
+    const high = subjectSqft > 0 && highPpsf > 0 ? Math.round(subjectSqft * highPpsf) : 0;
+    return { valid, weightedPpsf, suggestedArv, low, high, confidence: valid.length >= 3 && subjectSqft > 0 ? "medium" : "low" };
+  }, [manualComps, subjectSqft]);
+
+  const rehabTotal = useMemo(() => Object.values(rehabItems).reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0), [rehabItems]);
+
+  useEffect(() => {
+    if (!selected?.parcel_id) return;
+    try {
+      const raw = localStorage.getItem(`firstlook-pipeline-${selected.parcel_id}`);
+      if (!raw) {
+        setPipelineStage("Researching");
+        setPipelineNote("");
+        return;
+      }
+      const parsed = JSON.parse(raw) as { stage?: string; note?: string };
+      setPipelineStage(PIPELINE_STAGES.includes(parsed.stage as (typeof PIPELINE_STAGES)[number]) ? parsed.stage as (typeof PIPELINE_STAGES)[number] : "Researching");
+      setPipelineNote(typeof parsed.note === "string" ? parsed.note : "");
+    } catch {
+      setPipelineStage("Researching");
+      setPipelineNote("");
+    }
+  }, [selected?.parcel_id]);
+
+  function savePipeline(stage: (typeof PIPELINE_STAGES)[number], note: string) {
+    setPipelineStage(stage);
+    setPipelineNote(note);
+    if (selected?.parcel_id) localStorage.setItem(`firstlook-pipeline-${selected.parcel_id}`, JSON.stringify({ stage, note }));
+  }
+
   const dealAnalysis = useMemo(() => {
     const d = dealInputs;
     const safePct = (n: number) => Math.max(0, Math.min(100, n)) / 100;
@@ -397,6 +468,9 @@ export default function AppPage() {
     const monthlyExpenses = mortgage + monthlyOperating;
     const cashFlow = d.monthlyRent - monthlyExpenses;
     const annualNoi = (d.monthlyRent - monthlyOperating) * 12;
+    const annualDebtService = mortgage * 12;
+    const dscr = annualDebtService > 0 ? annualNoi / annualDebtService : 0;
+    const loanToValue = d.arv > 0 ? loan / d.arv : 0;
     const buyClosing = d.purchasePrice * safePct(d.buyClosingPct);
     const rehabContingency = d.rehab * safePct(d.contingencyPct);
     const holding = Math.max(0, d.holdingMonths) * Math.max(0, d.monthlyHolding);
@@ -405,6 +479,8 @@ export default function AppPage() {
     const cashOnCash = cashNeeded > 0 ? cashFlow * 12 / cashNeeded : 0;
     const sellClosing = d.arv * safePct(d.sellClosingPct);
     const flipProfit = d.arv - d.purchasePrice - buyClosing - d.rehab - rehabContingency - holding - sellClosing;
+    const totalProjectCost = d.purchasePrice + buyClosing + d.rehab + rehabContingency + holding + sellClosing;
+    const flipRoi = cashNeeded > 0 ? flipProfit / cashNeeded : 0;
     const targetProfit = d.arv * 0.15;
     const beforeBuyClosing = d.arv - sellClosing - d.rehab - rehabContingency - holding - targetProfit;
     const mao = Math.max(0, beforeBuyClosing / (1 + safePct(d.buyClosingPct)));
@@ -426,7 +502,7 @@ export default function AppPage() {
       dealStrategy === "brrrr" && refiNet <= remainingLoan ? "Refinance proceeds do not exceed the estimated remaining acquisition loan, so no investor cash-out is modeled." : null,
       "Working ARV is an estimate until property-level sold comps are verified.",
     ].filter(Boolean) as string[];
-    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, cashNeeded, capRate, cashOnCash, flipProfit, mao, refiGross, refiClosing, refiNet, remainingLoan, cashBackFromRefi, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings };
+    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, annualDebtService, dscr, loanToValue, cashNeeded, capRate, cashOnCash, flipProfit, flipRoi, totalProjectCost, mao, refiGross, refiClosing, refiNet, remainingLoan, cashBackFromRefi, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings };
   }, [dealInputs, dealStrategy]);
 
   const investorIntel = useMemo(() => {
