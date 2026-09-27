@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { calculateMaxBid, normalizeBuyBox, rescoreExisting, type ScoredProperty } from "../lib/engine";
+import { calculateMaxBid, normalizeBuyBox, rescoreExisting, InputPropertySchema, type ScoredProperty } from "../lib/engine";
 
 function synthetic(overrides: Partial<ScoredProperty>): ScoredProperty {
   return {
@@ -62,6 +62,18 @@ function run() {
   assert.equal(normalized.maxLookFirst, 25, "maxLookFirst should clamp to 25");
   assert.equal(normalized.minLookFirstScore, 0, "minLookFirstScore should clamp to 0");
   assert.equal(normalized.minEquitySpread, 1, "minEquitySpread should clamp to 1");
+
+  const invalidJurisdiction = InputPropertySchema.safeParse({
+    parcel_id: "NO-JURISDICTION",
+    address: "1 TEST ST",
+    assessed_fmv: 100000,
+    cry_out_bid: 10000,
+  });
+  assert.equal(invalidJurisdiction.success, false, "county/state must be required; never silently default jurisdiction");
+
+  const zeroWeightBox = normalizeBuyBox({ weights: { equitySpread: 0, taxBurden: 0, delinquencyYears: 0, propertyType: 0, neighborhoodValue: 0 } });
+  const zeroWeightResult = rescoreExisting([synthetic({ parcel_id: "ZERO-WEIGHTS" })], zeroWeightBox);
+  assert.equal(zeroWeightResult[0]?.score, 0, "all-zero custom weights must produce a finite zero score, never NaN");
 
   const bid = calculateMaxBid({
     arv: 200000,
