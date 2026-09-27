@@ -68,6 +68,15 @@ const REHAB_LABELS: Record<RehabKey,string> = {
   permitsOther: "Permits + other",
 };
 
+type RuntimeCapabilities = {
+  database: "configured" | "not-configured";
+  countyWatchRegistration: "persistent" | "disabled";
+  alertDelivery: string;
+  aiConcierge: string;
+  aiEngineer: string;
+  aiModel: string;
+};
+
 type DiligencePayload = {
   rules: {
     label: string;
@@ -199,6 +208,7 @@ export default function AppPage() {
   const [watchCounty, setWatchCounty] = useState("Clayton");
   const [watchState, setWatchState] = useState("GA");
   const [watchMsg, setWatchMsg] = useState<string | null>(null);
+  const [runtimeCapabilities, setRuntimeCapabilities] = useState<RuntimeCapabilities | null>(null);
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
   const [conciergeOpen, setConciergeOpen] = useState(false);
   const [conciergeQuestion, setConciergeQuestion] = useState("");
@@ -308,6 +318,20 @@ export default function AppPage() {
   useEffect(() => {
     void loadDemo();
   }, [loadDemo]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/health", { cache: "no-store" });
+        const json = await res.json() as { capabilities?: RuntimeCapabilities };
+        if (!cancelled && res.ok && json.capabilities) setRuntimeCapabilities(json.capabilities);
+      } catch {
+        if (!cancelled) setRuntimeCapabilities(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
 
   useEffect(() => {
     localStorage.setItem(BUY_BOX_KEY, JSON.stringify(buyBox));
@@ -872,6 +896,10 @@ export default function AppPage() {
 
   async function registerWatch() {
     setWatchMsg(null);
+    if (runtimeCapabilities?.countyWatchRegistration !== "persistent") {
+      setError("County Watch registration is unavailable until database persistence is connected.");
+      return;
+    }
     const res = await fetch("/api/monitor", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -990,6 +1018,7 @@ export default function AppPage() {
             FirstLook
           </Link>
           <span className="pill pill-mint">Bid discipline</span>
+          {runtimeCapabilities ? <span className="pill">{runtimeCapabilities.aiConcierge === "configured" ? "AI ready" : "AI fallback"} · {runtimeCapabilities.database === "configured" ? "cloud persistence" : "local workspace"}</span> : null}
         </div>
         <div className={styles.actions}>
           <a className="btn btn-ghost" href="/api/export">
@@ -1418,27 +1447,31 @@ export default function AppPage() {
           {sideTab === "watch" ? (
             <>
               <h2>County watch</h2>
-              <p className="muted">
-                Save a county watch registration. Delivery is only active after the database and alert worker are connected; FirstLook will not pretend an alert is live before then.
-              </p>
+              <div className={styles.trustNotice}>
+                <strong>{runtimeCapabilities?.countyWatchRegistration === "persistent" ? "Registration storage ready" : runtimeCapabilities ? "Watch registration not active" : "Checking backend…"}</strong>
+                <span>{runtimeCapabilities?.countyWatchRegistration === "persistent"
+                  ? (runtimeCapabilities.alertDelivery === "worker-not-configured" ? "Registrations can be saved, but outbound alert delivery still needs a worker." : "Persistent county-watch registration is available.")
+                  : runtimeCapabilities ? "Database persistence is not connected, so FirstLook will not accept a watch that cannot be saved." : "Reading runtime capability state…"}</span>
+              </div>
               <div className="field">
                 <label>Email</label>
-                <input value={watchEmail} onChange={(e) => setWatchEmail(e.target.value)} />
+                <input disabled={runtimeCapabilities?.countyWatchRegistration !== "persistent"} value={watchEmail} onChange={(e) => setWatchEmail(e.target.value)} />
               </div>
               <div className="field">
                 <label>County</label>
-                <input value={watchCounty} onChange={(e) => setWatchCounty(e.target.value)} />
+                <input disabled={runtimeCapabilities?.countyWatchRegistration !== "persistent"} value={watchCounty} onChange={(e) => setWatchCounty(e.target.value)} />
               </div>
               <div className="field">
                 <label>State</label>
-                <input value={watchState} onChange={(e) => setWatchState(e.target.value)} />
+                <input disabled={runtimeCapabilities?.countyWatchRegistration !== "persistent"} value={watchState} onChange={(e) => setWatchState(e.target.value)} />
               </div>
               <button
                 className="btn btn-primary"
                 style={{ width: "100%", marginTop: "0.8rem" }}
+                disabled={runtimeCapabilities?.countyWatchRegistration !== "persistent"}
                 onClick={() => void registerWatch()}
               >
-                Register watch
+                {runtimeCapabilities?.countyWatchRegistration === "persistent" ? "Register watch" : "Database connection required"}
               </button>
               {watchMsg ? <p className={styles.status}>{watchMsg}</p> : null}
             </>
