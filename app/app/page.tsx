@@ -47,6 +47,14 @@ type ConciergeMessage = { role: "user" | "assistant"; text: string };
 type AiContextMenu = { x: number; y: number; label: string; value: string } | null;
 type ManualComp = { id: number; address: string; salePrice: number; sqft: number; distanceMiles: number; adjustment: number };
 type RehabKey = "roof" | "hvac" | "kitchen" | "bathrooms" | "flooringPaint" | "electricalPlumbing" | "exterior" | "permitsOther";
+type PropertyWorkspace = {
+  dealStrategy?: DealStrategy;
+  dealInputs?: Record<string, number>;
+  subjectSqft?: number;
+  manualComps?: ManualComp[];
+  rehabItems?: Partial<Record<RehabKey, number>>;
+  updatedAt?: string;
+};
 
 const PIPELINE_STAGES = ["New","Researching","Due diligence","Offer","Under contract","Rehab","Listed / Rented","Exited"] as const;
 const REHAB_LABELS: Record<RehabKey,string> = {
@@ -212,6 +220,7 @@ export default function AppPage() {
   });
   const [pipelineStage, setPipelineStage] = useState<(typeof PIPELINE_STAGES)[number]>("Researching");
   const [pipelineNote, setPipelineNote] = useState("");
+  const [workspaceLoadedParcel, setWorkspaceLoadedParcel] = useState<string | null>(null);
   const conciergeScrollRef = useRef<HTMLDivElement | null>(null);
 
   const buyBoxRef = useRef(buyBox);
@@ -410,37 +419,86 @@ export default function AppPage() {
   }, [data]);
 
   useEffect(() => {
-    if (!selected) return;
+    if (!selected) {
+      setWorkspaceLoadedParcel(null);
+      return;
+    }
     const b = normalizeBidDefaults(bidDefaults);
-    setDealInputs((v) => ({
-      ...v,
-      purchasePrice: selected.cry_out_bid,
-      arv: selected.estimatedMarketMid ?? selected.assessed_fmv,
-      rehab: b.rehab,
-      monthlyRent: 0,
-      taxesMonthly: 0,
-      insuranceMonthly: 0,
-      buyClosingPct: b.closingBuyPct,
-      sellClosingPct: b.closingSellPct,
-      contingencyPct: b.contingencyPct,
-      targetProfitPct: b.desiredProfitPct,
-      titleLegal: b.titleLegal,
-      survivingLiens: b.survivingLiens,
-      evictionPossession: b.evictionPossession,
-      auctionFees: b.auctionFees,
-      redemptionCarry: b.redemptionCarry,
-    }));
-    setSubjectSqft(0);
-    setManualComps([
+    const defaultComps: ManualComp[] = [
       { id: 1, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
       { id: 2, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
       { id: 3, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
-    ]);
-    setRehabItems({
+    ];
+    const defaultRehab: Record<RehabKey, number> = {
       roof: 0, hvac: 0, kitchen: 0, bathrooms: 0, flooringPaint: 0,
       electricalPlumbing: 0, exterior: 0, permitsOther: b.rehab,
+    };
+    let saved: PropertyWorkspace | null = null;
+    try {
+      const raw = localStorage.getItem(`firstlook-workspace-${selected.parcel_id}`);
+      saved = raw ? JSON.parse(raw) as PropertyWorkspace : null;
+    } catch {
+      saved = null;
+    }
+
+    setDealStrategy(saved?.dealStrategy && ["flip","rental","brrrr"].includes(saved.dealStrategy) ? saved.dealStrategy : "flip");
+    setDealInputs((v) => {
+      const defaults = {
+        ...v,
+        purchasePrice: selected.cry_out_bid,
+        arv: selected.estimatedMarketMid ?? selected.assessed_fmv,
+        rehab: b.rehab,
+        monthlyRent: 0,
+        taxesMonthly: 0,
+        insuranceMonthly: 0,
+        buyClosingPct: b.closingBuyPct,
+        sellClosingPct: b.closingSellPct,
+        contingencyPct: b.contingencyPct,
+        targetProfitPct: b.desiredProfitPct,
+        titleLegal: b.titleLegal,
+        survivingLiens: b.survivingLiens,
+        evictionPossession: b.evictionPossession,
+        auctionFees: b.auctionFees,
+        redemptionCarry: b.redemptionCarry,
+      };
+      const savedInputs = saved?.dealInputs ?? {};
+      const next = { ...defaults };
+      for (const key of Object.keys(next) as Array<keyof typeof next>) {
+        if (typeof savedInputs[key] === "number") next[key] = normalizeDealInput(String(key), savedInputs[key] as number);
+      }
+      return next;
     });
-  }, [selected?.parcel_id]);
+    setSubjectSqft(Math.max(0, Number(saved?.subjectSqft) || 0));
+    setManualComps(Array.isArray(saved?.manualComps) && saved!.manualComps!.length
+      ? saved!.manualComps!.slice(0, 8).map((comp, index) => ({
+          id: Number(comp.id) || index + 1,
+          address: String(comp.address ?? "").slice(0, 300),
+          salePrice: Math.max(0, Number(comp.salePrice) || 0),
+          sqft: Math.max(0, Number(comp.sqft) || 0),
+          distanceMiles: Math.max(0, Number(comp.distanceMiles) || 0),
+          adjustment: Number(comp.adjustment) || 0,
+        }))
+      : defaultComps);
+    setRehabItems({ ...defaultRehab, ...(saved?.rehabItems ?? {}) });
+    setWorkspaceLoadedParcel(selected.parcel_id);
+  }, [selected?.parcel_id, bidDefaults]);
+
+  useEffect(() => {
+    if (!selected?.parcel_id || workspaceLoadedParcel !== selected.parcel_id) return;
+    const workspace: PropertyWorkspace = {
+      dealStrategy,
+      dealInputs,
+      subjectSqft,
+      manualComps,
+      rehabItems,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(`firstlook-workspace-${selected.parcel_id}`, JSON.stringify(workspace));
+    } catch {
+      // Browser storage can be unavailable or full; the active workspace still remains usable in memory.
+    }
+  }, [selected?.parcel_id, workspaceLoadedParcel, dealStrategy, dealInputs, subjectSqft, manualComps, rehabItems]);
 
   const compAnalysis = useMemo(() => {
     const valid = manualComps
@@ -557,6 +615,56 @@ export default function AppPage() {
     const selectedReadiness = Math.max(0, 100 - Math.min(100, missing.length * 16));
     return { missing, look, totalModeledValue, totalCryOut, flagged, selectedReadiness };
   }, [data, diligence, checkedItems, dealStrategy, dealInputs.monthlyRent, dealInputs.taxesMonthly, dealInputs.insuranceMonthly]);
+
+  const copilotModuleContext = useMemo(() => ({
+    activeModule: osModule,
+    strategy: dealStrategy,
+    comps: {
+      subjectSqft,
+      manualComps,
+      validCompCount: compAnalysis.valid.length,
+      weightedPpsf: compAnalysis.weightedPpsf,
+      suggestedArv: compAnalysis.suggestedArv,
+      arvRange: { low: compAnalysis.low, high: compAnalysis.high },
+      confidence: compAnalysis.confidence,
+    },
+    rehab: {
+      items: rehabItems,
+      baseTotal: rehabTotal,
+      contingencyPct: dealInputs.contingencyPct,
+      allInReserve: rehabTotal * (1 + dealInputs.contingencyPct / 100),
+    },
+    financing: {
+      inputs: {
+        downPaymentPct: dealInputs.downPaymentPct,
+        interestRate: dealInputs.interestRate,
+        loanYears: dealInputs.loanYears,
+        taxesMonthly: dealInputs.taxesMonthly,
+        insuranceMonthly: dealInputs.insuranceMonthly,
+        otherMonthly: dealInputs.otherMonthly,
+      },
+      outputs: {
+        loan: dealAnalysis.loan,
+        mortgage: dealAnalysis.mortgage,
+        annualNoi: dealAnalysis.annualNoi,
+        dscr: dealAnalysis.dscr,
+        loanToValue: dealAnalysis.loanToValue,
+      },
+    },
+    diligenceProgress: {
+      complete: Object.values(checkedItems).filter(Boolean).length,
+      total: diligence?.checklist.length ?? 0,
+      checkedItems,
+    },
+    pipeline: { stage: pipelineStage, note: pipelineNote },
+    buyBox: {
+      minLookFirstScore: buyBox.minLookFirstScore,
+      minBidHeadroomPct: buyBox.minBidHeadroomPct,
+      minEquitySpread: buyBox.minEquitySpread,
+      maxCryOutBid: buyBox.maxCryOutBid,
+    },
+    bidDefaults,
+  }), [osModule, dealStrategy, subjectSqft, manualComps, compAnalysis, rehabItems, rehabTotal, dealInputs, dealAnalysis, checkedItems, diligence, pipelineStage, pipelineNote, buyBox, bidDefaults]);
 
   const liveBidPreview = useMemo(() => {
     if (!selected) return null;
@@ -754,10 +862,10 @@ export default function AppPage() {
         method: "POST",
         headers: useEngineer ? { "Content-Type": "application/json", "x-firstlook-admin-key": engineerKey } : { "Content-Type": "application/json" },
         body: JSON.stringify(useEngineer ? {
-          request: question, module: osModule, strategy: dealStrategy, inputs: dealInputs, results: dealAnalysis, property: selected ?? undefined
+          request: question, module: osModule, strategy: dealStrategy, inputs: { ...dealInputs, moduleContext: copilotModuleContext }, results: dealAnalysis, property: selected ?? undefined
         } : {
           question, history: conciergeMessages.slice(-8), property: selected ?? undefined, diligence,
-          analysis: { module: osModule, strategy: dealStrategy, inputs: dealInputs, results: dealAnalysis },
+          analysis: { module: osModule, strategy: dealStrategy, inputs: dealInputs, results: dealAnalysis, moduleContext: copilotModuleContext },
           portfolio: { total: data?.total, lookFirstCount: data?.lookFirstCount },
         }),
       });
