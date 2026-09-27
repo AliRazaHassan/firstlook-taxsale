@@ -50,7 +50,7 @@ export async function POST(request: Request) {
     const keyConfigured = Boolean(process.env.OPENAI_API_KEY);
     console.info("Concierge request", {
       keyConfigured,
-      model: process.env.OPENAI_CONCIERGE_MODEL || "gpt-5-mini",
+      model: process.env.OPENAI_CONCIERGE_MODEL || "gpt-4.1-mini",
       hasProperty: Boolean(body.property),
       hasAnalysis: Boolean(body.analysis),
     });
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_CONCIERGE_MODEL || "gpt-5-mini",
+        model: process.env.OPENAI_CONCIERGE_MODEL || "gpt-4.1-mini",
         instructions:
           "You are FirstLook Copilot, a real-estate and tax-sale decision-support assistant. Explain the supplied FirstLook results in plain English and use the supplied analyzer inputs/results when the question is about a calculation. Be concise and practical. Never invent property facts, liens, title status, county law, comps, occupancy, condition, rent, taxes, insurance, or redemption facts. Clearly distinguish modeled estimates from verified facts and user assumptions. Never guarantee safety or profit. When evidence is missing, name exactly what must be verified. You may explain calculations and suggest diligence steps, but do not present yourself as a lawyer, title examiner, appraiser, or financial adviser.",
         input: `FIRSTLOOK CONTEXT:\n${context}\n\nUSER QUESTION:\n${body.question}`,

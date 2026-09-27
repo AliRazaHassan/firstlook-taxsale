@@ -7,6 +7,7 @@ export type MaxBidDefaults = {
   closingBuyPct?: number;
   closingSellPct?: number;
   desiredProfitPct?: number;
+  contingencyPct?: number;
   titleLegal?: number;
   survivingLiens?: number;
   evictionPossession?: number;
@@ -103,6 +104,7 @@ export function attachMaxBids<
       closingBuyPct: defaults.closingBuyPct,
       closingSellPct: defaults.closingSellPct,
       desiredProfit: Math.round(arv * desiredProfitPct),
+      contingency: Math.round(rehab * safePct(defaults.contingencyPct, 0.1)),
       cryOutBid: row.cry_out_bid,
       titleLegal: defaults.titleLegal,
       survivingLiens: defaults.survivingLiens,

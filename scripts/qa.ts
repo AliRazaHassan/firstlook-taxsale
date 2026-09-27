@@ -1,0 +1,119 @@
+import assert from "node:assert/strict";
+import { calculateMaxBid, normalizeBuyBox, rescoreExisting, InputPropertySchema, type ScoredProperty } from "../lib/engine";
+
+function synthetic(overrides: Partial<ScoredProperty>): ScoredProperty {
+  return {
+    sale_date: "2026-10-01",
+    parcel_id: "QA-1",
+    owner: "TEST OWNER",
+    address: "100 MAIN ST",
+    tax_years: "2024|2025",
+    assessed_fmv: 200000,
+    cry_out_bid: 20000,
+    property_type_hint: "residential",
+    county: "Clayton",
+    state: "GA",
+    city_hint: "",
+    matchedAddress: "100 MAIN ST",
+    lat: 33.5,
+    lon: -84.3,
+    zip: "30236",
+    city: "Jonesboro",
+    matchedState: "GA",
+    tract: "1",
+    countyFips: "063",
+    stateFips: "13",
+    geocodeStatus: "matched",
+    tractMedianHomeValue: 220000,
+    tractMedianIncome: 70000,
+    tractName: "QA tract",
+    acsVintage: "2024",
+    assessorUrl: "",
+    zillowUrl: "",
+    redfinUrl: "",
+    regridUrl: "",
+    googleMapsUrl: "",
+    cleanAddress: "100 MAIN ST",
+    taxYearsList: ["2024","2025"],
+    delinquencyYears: 2,
+    taxBurdenRatio: 0.1,
+    equitySpread: 0.9,
+    estimatedMarketLow: 180000,
+    estimatedMarketHigh: 220000,
+    estimatedMarketMid: 200000,
+    propertyType: "residential",
+    redFlags: [],
+    notes: "",
+    score: 80,
+    rank: 1,
+    lookAtFirst: true,
+    ...overrides,
+  };
+}
+
+function run() {
+  const normalized = normalizeBuyBox({
+    maxTaxBurdenRatio: 0,
+    maxLookFirst: 999,
+    minLookFirstScore: -5,
+    minEquitySpread: 2,
+  });
+  assert(normalized.maxTaxBurdenRatio > 0, "maxTaxBurdenRatio must never normalize to zero");
+  assert.equal(normalized.maxLookFirst, 25, "maxLookFirst should clamp to 25");
+  assert.equal(normalized.minLookFirstScore, 0, "minLookFirstScore should clamp to 0");
+  assert.equal(normalized.minEquitySpread, 1, "minEquitySpread should clamp to 1");
+
+  const invalidJurisdiction = InputPropertySchema.safeParse({
+    parcel_id: "NO-JURISDICTION",
+    address: "1 TEST ST",
+    assessed_fmv: 100000,
+    cry_out_bid: 10000,
+  });
+  assert.equal(invalidJurisdiction.success, false, "county/state must be required; never silently default jurisdiction");
+
+  const zeroWeightBox = normalizeBuyBox({ weights: { equitySpread: 0, taxBurden: 0, delinquencyYears: 0, propertyType: 0, neighborhoodValue: 0 } });
+  const zeroWeightResult = rescoreExisting([synthetic({ parcel_id: "ZERO-WEIGHTS" })], zeroWeightBox);
+  assert.equal(zeroWeightResult[0]?.score, 0, "all-zero custom weights must produce a finite zero score, never NaN");
+
+  const bid = calculateMaxBid({
+    arv: 200000,
+    rehab: 30000,
+    holdingMonths: 6,
+    monthlyHolding: 500,
+    closingBuyPct: 0.02,
+    closingSellPct: 0.08,
+    desiredProfit: 30000,
+    contingency: 3000,
+  });
+  assert.equal(bid.maxBid, 115686, "max bid should solve buy-side closing costs against the offer");
+  assert(Math.abs(bid.projectedProfit - 30000) <= 2, "projected profit should stay at the target after rounding");
+
+  const safe = calculateMaxBid({
+    arv: -1,
+    rehab: -10,
+    holdingMonths: -5,
+    monthlyHolding: -1,
+    closingBuyPct: 5,
+    closingSellPct: -1,
+  });
+  assert.equal(safe.maxBid, 0, "negative/unsafe inputs must not create a positive max bid");
+  assert(safe.totalCosts >= 0, "costs must remain non-negative");
+
+  const box = normalizeBuyBox({
+    maxCryOutBid: 50000,
+    minEquitySpread: 0.5,
+    minLookFirstScore: 0,
+    maxLookFirst: 1,
+  });
+  const rescored = rescoreExisting([
+    synthetic({ parcel_id: "TOO-HIGH", cry_out_bid: 90000 }),
+    synthetic({ parcel_id: "GOOD", cry_out_bid: 20000 }),
+  ], box);
+  assert.equal(rescored.filter((p) => p.lookAtFirst).length, 1, "Look First count must obey maxLookFirst");
+  assert.equal(rescored.find((p) => p.parcel_id === "TOO-HIGH")?.lookAtFirst, false, "cry-out above cap must not be Look First");
+  assert.equal(rescored.find((p) => p.parcel_id === "GOOD")?.lookAtFirst, true, "qualified property should be Look First");
+
+  console.log("FirstLook QA: all deterministic regression checks passed.");
+}
+
+run();

@@ -615,3 +615,41 @@
 .copilotAdmin input{min-width:0;width:100%;box-sizing:border-box}
 .aiContextMenu{display:grid;gap:.2rem}
 @media(max-width:640px){.copilotAdmin{grid-template-columns:1fr}.copilotAdmin span{white-space:normal}}
+
+
+/* Investor control density */
+.sidebarGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem}
+.sidebarGrid :global(.field){margin:0}
+.advancedBox{margin-top:.75rem;padding:.7rem;border:1px solid #dce1dc;border-radius:8px;background:#f8faf7}
+.advancedBox summary{cursor:pointer;font-weight:800;color:#335148;font-size:.78rem}
+.advancedBox[open] summary{margin-bottom:.7rem}
+@media(max-width:1120px){.sidebarGrid{grid-template-columns:1fr}}
+
+
+/* Working Real Estate OS modules */
+.moduleMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin:.75rem 0}
+.moduleMetrics p{display:grid;gap:.2rem;margin:0;padding:.65rem .7rem;border:1px solid #e0e4df;border-radius:7px;background:#f8faf7;min-width:0}
+.moduleMetrics p>span{font-size:.67rem;text-transform:uppercase;letter-spacing:.05em;color:#68736c;font-weight:750}
+.moduleMetrics p>strong{font-size:.98rem;overflow-wrap:anywhere}
+.moduleMetrics p>em{margin-left:0;width:max-content}
+.moduleActions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.8rem}
+.compRows{display:grid;gap:.55rem}
+.compRow{display:grid;grid-template-columns:58px minmax(135px,1.5fr) minmax(90px,.8fr) minmax(75px,.65fr) minmax(65px,.55fr) minmax(105px,.8fr) 70px;gap:.4rem;align-items:center;padding:.55rem;border:1px solid #e0e4df;border-radius:8px;background:#fbfcfa}
+.compRow input{min-width:0;width:100%;box-sizing:border-box}
+.compRow>strong{font-size:.72rem;color:#445149}
+.compRow>span{text-align:right;font-size:.72rem}
+.rehabGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem}
+.rehabGrid label{display:grid;gap:.25rem;font-size:.75rem;font-weight:700;color:#58635c}
+.rehabGrid input{width:100%;min-width:0;box-sizing:border-box}
+.inlineWarning{padding:.7rem .8rem;border:1px solid #ead38d;background:#fffaf0;color:#72530b;border-radius:7px;font-size:.78rem}
+.diligenceList{display:grid;gap:.45rem}
+.diligenceRow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:.6rem;padding:.65rem;border:1px solid #e0e4df;border-radius:8px;background:#fbfcfa}
+.diligenceRow>span{display:grid;gap:.15rem}
+.diligenceRow strong{font-size:.78rem}
+.diligenceRow small{font-size:.7rem;color:#6d7770;line-height:1.35}
+.diligenceRow em{font-size:.6rem;text-transform:uppercase;letter-spacing:.05em;font-style:normal;color:#5f6d64;background:#edf1ed;border-radius:999px;padding:.15rem .35rem}
+.pipelineStages button{padding:.5rem .65rem;border:1px solid #d5d9d3;border-radius:999px;background:#fff;font-size:.78rem;cursor:pointer}
+.pipelineStages button:hover{border-color:#0a5746}
+.pipelineNote{width:100%;box-sizing:border-box;resize:vertical}
+@media(max-width:1100px){.compRow{grid-template-columns:55px minmax(120px,1.5fr) repeat(3,minmax(80px,1fr));}.compRow>span{grid-column:2/-1;text-align:left}.compRow input:nth-of-type(5){grid-column:auto}}
+@media(max-width:720px){.moduleMetrics,.rehabGrid{grid-template-columns:1fr}.compRow{grid-template-columns:1fr 1fr}.compRow>strong,.compRow input:first-of-type,.compRow>span{grid-column:1/-1}.moduleActions .btn{flex:1 1 100%}}

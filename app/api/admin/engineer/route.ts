@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       method:"POST",
       headers:{"Content-Type":"application/json",Authorization:`Bearer ${process.env.OPENAI_API_KEY}`},
       body:JSON.stringify({
-        model:process.env.OPENAI_CONCIERGE_MODEL || "gpt-5-mini",
+        model:process.env.OPENAI_CONCIERGE_MODEL || "gpt-4.1-mini",
         instructions:"You are FirstLook AI Engineer, an admin-only diagnostic agent for a real-estate investment application. Analyze calculation or UI bug reports against supplied deterministic inputs/results. Recompute important arithmetic independently and identify likely formula, assumption, data-provenance, or UI problems. Never invent source data. Distinguish a software bug from a bad/missing user assumption. Return concise sections: VERDICT, RECOMPUTATION, LIKELY CAUSE, PROPOSED FIX, TESTS. If evidence is insufficient, say exactly what is missing. You may propose code-level fixes, but this endpoint does not directly modify production.",
         input:`CURRENT APP STATE:\n${context}\n\nADMIN REPORT:\n${body.request}`,
         max_output_tokens:900

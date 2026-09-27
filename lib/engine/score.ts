@@ -33,7 +33,13 @@ export function collectRedFlags(
     flags.push(`Low assessed FMV ($${property.assessed_fmv.toLocaleString()})`);
   }
   if (taxBurdenRatio >= buyBox.redFlags.highTaxBurdenRatio) {
-    flags.push(`High tax burden vs FMV (${(taxBurdenRatio * 100).toFixed(1)}%)`);
+    flags.push(`High cry-out vs assessed FMV (${(taxBurdenRatio * 100).toFixed(1)}%)`);
+  }
+  if (buyBox.maxCryOutBid > 0 && property.cry_out_bid > buyBox.maxCryOutBid) {
+    flags.push(`Cry-out above buy-box cap (${buyBox.maxCryOutBid.toLocaleString()})`);
+  }
+  if (equitySpread < buyBox.minEquitySpread) {
+    flags.push(`Below minimum equity spread (${(equitySpread * 100).toFixed(0)}% vs ${(buyBox.minEquitySpread * 100).toFixed(0)}%)`);
   }
   if (delinquencyYears >= buyBox.redFlags.longDelinquencyYears) {
     flags.push(`Long delinquency (${delinquencyYears} years)`);
@@ -69,7 +75,7 @@ export function buildNotes(
   if (tractMedian != null) {
     parts.push(`ACS tract median home value $${tractMedian.toLocaleString()}.`);
   }
-  parts.push(`Tax burden ${(taxBurdenRatio * 100).toFixed(1)}% of assessed FMV.`);
+  parts.push(`Cry-out is ${(taxBurdenRatio * 100).toFixed(1)}% of assessed FMV.`);
   parts.push(`Type: ${propertyType.replaceAll("_", " ")}.`);
   if (redFlags.length) parts.push(`Flags: ${redFlags.join("; ")}.`);
   else parts.push("No major automated red flags.");
@@ -124,6 +130,7 @@ export function scoreProperty(args: {
   }
 
   const totalWeight = w.equitySpread + w.taxBurden + w.delinquencyYears + w.propertyType + w.neighborhoodValue;
+  if (totalWeight <= 0) return 0;
   const raw =
     (equityScore * w.equitySpread +
       taxScore * w.taxBurden +
@@ -148,7 +155,7 @@ export function estimateMarketRange(
   return { low: Math.round(base * 0.9), mid: Math.round(base), high: Math.round(base * 1.1) };
 }
 
-export function assignRanks(rows: Omit<ScoredProperty, "rank" | "lookAtFirst">[]): ScoredProperty[] {
+export function assignRanks(rows: Omit<ScoredProperty, "rank" | "lookAtFirst">[], buyBox: BuyBox): ScoredProperty[] {
   const sorted = [...rows].sort((a, b) => b.score - a.score);
   const ranked = sorted.map((row, index) => ({
     ...row,
@@ -158,9 +165,11 @@ export function assignRanks(rows: Omit<ScoredProperty, "rank" | "lookAtFirst">[]
 
   let picks = 0;
   for (const row of ranked) {
-    if (picks >= 5) break;
-    if (row.score < 55) continue;
+    if (picks >= buyBox.maxLookFirst) break;
+    if (row.score < buyBox.minLookFirstScore) continue;
     if (row.propertyType.includes("vacant")) continue;
+    if (row.equitySpread < buyBox.minEquitySpread) continue;
+    if (buyBox.maxCryOutBid > 0 && row.cry_out_bid > buyBox.maxCryOutBid) continue;
     if (row.redFlags.some((f) => /investor owner/i.test(f))) continue;
     if (row.propertyType === "related_parcel") continue;
     row.lookAtFirst = true;
@@ -169,10 +178,12 @@ export function assignRanks(rows: Omit<ScoredProperty, "rank" | "lookAtFirst">[]
 
   if (picks < 5) {
     for (const row of ranked) {
-      if (picks >= 5) break;
+      if (picks >= buyBox.maxLookFirst) break;
       if (row.lookAtFirst) continue;
-      if (row.score < 55) continue;
+      if (row.score < buyBox.minLookFirstScore) continue;
       if (row.propertyType.includes("vacant")) continue;
+      if (row.equitySpread < buyBox.minEquitySpread) continue;
+      if (buyBox.maxCryOutBid > 0 && row.cry_out_bid > buyBox.maxCryOutBid) continue;
       row.lookAtFirst = true;
       picks += 1;
     }

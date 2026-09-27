@@ -37,7 +37,7 @@ export async function researchProperties(
       .split(/[|,]/)
       .map((y) => y.trim())
       .filter(Boolean);
-    const delinquencyYears = taxYearsList.length || 1;
+    const delinquencyYears = taxYearsList.length;
     const taxBurdenRatio = property.assessed_fmv > 0 ? property.cry_out_bid / property.assessed_fmv : 1;
     const equitySpread =
       property.assessed_fmv > 0
@@ -100,6 +100,6 @@ export async function researchProperties(
     });
   }
 
-  const ranked = assignRanks(researched);
+  const ranked = assignRanks(researched, buyBox);
   return attachDealTruthScores(attachMaxBids(ranked));
 }

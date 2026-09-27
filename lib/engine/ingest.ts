@@ -33,14 +33,16 @@ export function parseTaxSaleCsv(text: string): InputProperty[] {
       assessed_fmv: normalized.assessed_fmv ?? normalized.fmv ?? normalized.fair_market_value ?? "0",
       cry_out_bid: normalized.cry_out_bid ?? normalized.bid ?? normalized.amount_due ?? "0",
       property_type_hint: normalized.property_type_hint ?? normalized.type ?? "unknown",
-      county: normalized.county ?? "Clayton",
-      state: normalized.state ?? "GA",
+      county: normalized.county ?? "",
+      state: normalized.state ?? "",
       city_hint: normalized.city_hint ?? normalized.city ?? "",
     };
 
     const parsed = InputPropertySchema.safeParse(mapped);
     if (!parsed.success) {
-      throw new Error(`Invalid row ${index + 2}: ${parsed.error.issues[0]?.message ?? "bad data"}`);
+      const issue = parsed.error.issues[0];
+      const field = issue?.path?.length ? issue.path.join(".") : "row";
+      throw new Error(`Invalid row ${index + 2} (${field}): ${issue?.message ?? "bad data"}`);
     }
     return parsed.data;
   });
