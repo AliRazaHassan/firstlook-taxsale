@@ -9,6 +9,10 @@ export const DEFAULT_BUY_BOX = {
   maxTaxBurdenRatio: 0.12,
   minAssessedValue: 80000,
   targetEquitySpreadMin: 0.7,
+  minEquitySpread: 0.45,
+  maxCryOutBid: 0,
+  minLookFirstScore: 55,
+  maxLookFirst: 5,
   weights: {
     equitySpread: 35,
     taxBurden: 20,
@@ -48,6 +52,13 @@ export function normalizeBuyBox(raw: unknown): BuyBox {
   const merged = {
     ...base,
     ...o,
+    maxTaxBurdenRatio: Math.max(0.001, Math.min(1, Number(o.maxTaxBurdenRatio ?? base.maxTaxBurdenRatio) || base.maxTaxBurdenRatio)),
+    minAssessedValue: Math.max(0, Number(o.minAssessedValue ?? base.minAssessedValue) || 0),
+    targetEquitySpreadMin: Math.max(0.01, Math.min(1, Number(o.targetEquitySpreadMin ?? base.targetEquitySpreadMin) || base.targetEquitySpreadMin)),
+    minEquitySpread: Math.max(-1, Math.min(1, Number(o.minEquitySpread ?? base.minEquitySpread))),
+    maxCryOutBid: Math.max(0, Number(o.maxCryOutBid ?? base.maxCryOutBid) || 0),
+    minLookFirstScore: Math.max(0, Math.min(100, Number(o.minLookFirstScore ?? base.minLookFirstScore) || 0)),
+    maxLookFirst: Math.max(1, Math.min(25, Math.round(Number(o.maxLookFirst ?? base.maxLookFirst) || base.maxLookFirst))),
     weights: { ...base.weights, ...weightsIn },
     redFlags: {
       ...base.redFlags,
