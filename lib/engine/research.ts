@@ -100,6 +100,7 @@ export async function researchProperties(
     });
   }
 
-  const ranked = assignRanks(researched, buyBox);
-  return attachDealTruthScores(attachMaxBids(ranked));
+  const withBids = attachMaxBids(researched);
+  const ranked = assignRanks(withBids, buyBox);
+  return attachDealTruthScores(ranked);
 }

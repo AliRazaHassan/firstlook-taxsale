@@ -15,7 +15,7 @@ export async function GET() {
         alertDelivery: "worker-not-configured",
         aiConcierge: process.env.OPENAI_API_KEY ? "configured" : "missing-key",
         aiEngineer: process.env.FIRSTLOOK_ADMIN_KEY ? "configured" : "missing-admin-key",
-        aiModel: process.env.OPENAI_CONCIERGE_MODEL || "gpt-5-mini",
+        aiModel: process.env.OPENAI_CONCIERGE_MODEL || "gpt-4.1-mini",
       },
     },
     { headers: { "Cache-Control": "no-store" } },

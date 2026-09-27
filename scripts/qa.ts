@@ -121,6 +121,16 @@ function run() {
   ], strictBox);
   assert.equal(strictRows.some((p) => p.lookAtFirst), false, "Look First must not fill quotas with explicitly excluded risky deal types");
 
+  const evidenceBox = normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1 });
+  const missingHistory = rescoreExisting([synthetic({ parcel_id: "MISSING-HISTORY", tax_years: "", taxYearsList: [], delinquencyYears: 0 })], evidenceBox);
+  assert(missingHistory[0]?.redFlags.some((f) => /history missing/i.test(f)), "missing delinquency history must be explicit, not silently rewarded");
+
+  const overbidBox = normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1, maxCryOutBid: 0, maxLookFirst: 5 });
+  const overbidRows = rescoreExisting([
+    synthetic({ parcel_id: "OVER-MAX", assessed_fmv: 100000, estimatedMarketMid: 100000, cry_out_bid: 90000 }),
+  ], overbidBox, { rehab: 25000, desiredProfitPct: 0.15 });
+  assert.equal(overbidRows[0]?.lookAtFirst, false, "a deal at or above modeled max bid must never be Look First");
+
   const req = new Request("https://firstlook.local/test", { headers: { "x-forwarded-for": "203.0.113.9" } });
   assert.equal(checkRateLimit(req, "qa-rate", 2, 60000).ok, true, "first request should pass rate limit");
   assert.equal(checkRateLimit(req, "qa-rate", 2, 60000).ok, true, "second request should pass rate limit");
