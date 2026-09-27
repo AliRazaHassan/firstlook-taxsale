@@ -3,6 +3,7 @@ import {
   BuyBoxSchema,
   DEFAULT_BUY_BOX,
   impactStats,
+  normalizeBuyBox,
   parseTaxSaleCsv,
   researchProperties,
   attachDealTruthScores,
@@ -53,9 +54,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const buyBox = body.buyBox
-      ? BuyBoxSchema.parse(body.buyBox)
-      : BuyBoxSchema.parse(DEFAULT_BUY_BOX);
+    const buyBox = BuyBoxSchema.parse(normalizeBuyBox(body.buyBox ?? DEFAULT_BUY_BOX));
 
     let results = await researchProperties(properties, buyBox);
     if (body.bidDefaults) {
