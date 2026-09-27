@@ -11,7 +11,7 @@
     "research:sheets": "tsx src-cli/index.ts --sheets",
     "typecheck": "tsc --noEmit",
     "qa": "tsx scripts/qa.ts",
-    "prebuild": "npm run qa"
+    "prebuild": "npm run qa && (npm audit --json || true)"
   },
   "engines": {
     "node": ">=20"
