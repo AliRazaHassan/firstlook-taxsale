@@ -24,6 +24,14 @@ export async function POST(request: Request) {
         holdingMonths?: number;
         monthlyHolding?: number;
         desiredProfitPct?: number;
+        closingBuyPct?: number;
+        closingSellPct?: number;
+        contingencyPct?: number;
+        titleLegal?: number;
+        survivingLiens?: number;
+        evictionPossession?: number;
+        auctionFees?: number;
+        redemptionCarry?: number;
       };
     };
 
