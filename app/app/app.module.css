@@ -563,3 +563,9 @@
 .dealQueue button>span:not(.queueAddress):not(.queueRank){display:grid;gap:.1rem}
 @media(max-width:1000px){.commandMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.commandGrid{grid-template-columns:1fr}.spanTwo{grid-column:auto}.dealPulse{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.commandHero{align-items:flex-start;flex-direction:column}.commandMetrics{grid-template-columns:1fr}.dealQueue button{grid-template-columns:32px minmax(0,1fr) 18px}.dealQueue button>span:not(.queueAddress):not(.queueRank){display:none}.dealPulse{grid-template-columns:1fr 1fr}}
+
+.propertyBrief{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem 1.1rem;border:1px solid #cbd8cf;border-radius:10px;background:linear-gradient(135deg,#f7fbf8,#eef6f2)}
+.propertyBrief h2{font-family:var(--font-display),"Space Grotesk",system-ui,sans-serif;margin:.2rem 0;font-size:1.15rem}
+.propertyBrief p{margin:0;color:#66716a;font-size:.82rem}
+.briefActions{display:flex;gap:.45rem;flex-wrap:wrap;flex:0 0 auto}
+@media(max-width:760px){.propertyBrief{align-items:flex-start;flex-direction:column}.briefActions{width:100%}.briefActions .btn{flex:1}}
