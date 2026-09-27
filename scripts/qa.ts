@@ -63,6 +63,8 @@ function run() {
   assert.equal(normalized.maxLookFirst, 25, "maxLookFirst should clamp to 25");
   assert.equal(normalized.minLookFirstScore, 0, "minLookFirstScore should clamp to 0");
   assert.equal(normalized.minEquitySpread, 1, "minEquitySpread should clamp to 1");
+  const headroomClamp = normalizeBuyBox({ minBidHeadroomPct: 2 });
+  assert.equal(headroomClamp.minBidHeadroomPct, 0.95, "bid headroom should clamp to 95%");
 
   const invalidJurisdiction = InputPropertySchema.safeParse({
     parcel_id: "NO-JURISDICTION",
@@ -125,11 +127,18 @@ function run() {
   const missingHistory = rescoreExisting([synthetic({ parcel_id: "MISSING-HISTORY", tax_years: "", taxYearsList: [], delinquencyYears: 0 })], evidenceBox);
   assert(missingHistory[0]?.redFlags.some((f) => /history missing/i.test(f)), "missing delinquency history must be explicit, not silently rewarded");
 
-  const overbidBox = normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1, maxCryOutBid: 0, maxLookFirst: 5 });
-  const overbidRows = rescoreExisting([
-    synthetic({ parcel_id: "OVER-MAX", assessed_fmv: 100000, estimatedMarketMid: 100000, cry_out_bid: 90000 }),
+  const overbidBox = normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1, maxCryOutBid: 0, maxLookFirst: 5, minBidHeadroomPct: 0.15 });
+  const nearCeilingRows = rescoreExisting([
+    synthetic({ parcel_id: "NEAR-CEILING", assessed_fmv: 100000, tractMedianHomeValue: 220000, cry_out_bid: 90000 }),
   ], overbidBox, { rehab: 25000, desiredProfitPct: 0.15 });
-  assert.equal(overbidRows[0]?.lookAtFirst, false, "a deal at or above modeled max bid must never be Look First");
+  assert.equal(nearCeilingRows[0]?.lookAtFirst, false, "a deal without the required bid headroom must never be Look First");
+  assert((nearCeilingRows[0]?.maxBid ?? 0) > 90000, "fixture should prove this case is below max bid but still too close to the ceiling");
+
+  const overMaxRows = rescoreExisting([
+    synthetic({ parcel_id: "OVER-MAX", assessed_fmv: 100000, tractMedianHomeValue: null, cry_out_bid: 90000 }),
+  ], normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1, minBidHeadroomPct: 0 }), { rehab: 25000, desiredProfitPct: 0.15 });
+  assert.equal(overMaxRows[0]?.lookAtFirst, false, "a deal at or above modeled max bid must never be Look First");
+  assert((overMaxRows[0]?.maxBid ?? 0) <= 90000, "fixture should actually be at or above its modeled ceiling");
 
   const req = new Request("https://firstlook.local/test", { headers: { "x-forwarded-for": "203.0.113.9" } });
   assert.equal(checkRateLimit(req, "qa-rate", 2, 60000).ok, true, "first request should pass rate limit");

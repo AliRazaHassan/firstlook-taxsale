@@ -152,8 +152,8 @@ function loadBidDefaults(): BidDefaults {
   }
 }
 
-function hasHeadroom(p: ScoredProperty): boolean {
-  return p.maxBid != null && p.maxBid > 0 && p.cry_out_bid < p.maxBid * 0.85;
+function hasHeadroom(p: ScoredProperty, minHeadroomPct = 0.15): boolean {
+  return p.maxBid != null && p.maxBid > 0 && (p.maxBid - p.cry_out_bid) / p.maxBid >= minHeadroomPct;
 }
 
 function isOverbidRisk(p: ScoredProperty): boolean {
@@ -357,10 +357,10 @@ export default function AppPage() {
       look: props.filter((p) => p.lookAtFirst).length,
       flagged: props.filter((p) => p.redFlags.length > 0).length,
       clean: props.filter((p) => p.redFlags.length === 0).length,
-      headroom: props.filter(hasHeadroom).length,
+      headroom: props.filter((p) => hasHeadroom(p, buyBox.minBidHeadroomPct)).length,
       overbid: props.filter(isOverbidRisk).length,
     };
-  }, [data]);
+  }, [data, buyBox.minBidHeadroomPct]);
 
   const filtered = useMemo(() => {
     if (!data) return [];
@@ -370,7 +370,7 @@ export default function AppPage() {
       if (filter === "look" && !p.lookAtFirst) return false;
       if (filter === "flagged" && p.redFlags.length === 0) return false;
       if (filter === "clean" && p.redFlags.length > 0) return false;
-      if (filter === "headroom" && !hasHeadroom(p)) return false;
+      if (filter === "headroom" && !hasHeadroom(p, buyBox.minBidHeadroomPct)) return false;
       if (filter === "overbid" && !isOverbidRisk(p)) return false;
       if (!q) return true;
       return (
@@ -397,7 +397,7 @@ export default function AppPage() {
     });
 
     return rows;
-  }, [data, filter, query, minScore, sortMode]);
+  }, [data, filter, query, minScore, sortMode, buyBox.minBidHeadroomPct]);
 
   const impact = data?.impact;
 
@@ -1105,6 +1105,11 @@ export default function AppPage() {
                   <label>Min Look First score</label>
                   <input type="number" min="0" max="100" value={buyBox.minLookFirstScore}
                     onChange={(e) => setBuyBox((b) => ({ ...b, minLookFirstScore: Math.max(0, Math.min(100, Number(e.target.value) || 0)) }))} />
+                </div>
+                <div className="field">
+                  <label>Min bid headroom %</label>
+                  <input type="number" min="0" max="95" step="1" value={Math.round(buyBox.minBidHeadroomPct * 100)}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, minBidHeadroomPct: Math.max(0, Math.min(0.95, (Number(e.target.value) || 0) / 100)) }))} />
                 </div>
                 <div className="field">
                   <label>Max Look First deals</label>

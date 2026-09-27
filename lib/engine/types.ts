@@ -12,6 +12,7 @@ export const BuyBoxSchema = z.object({
   minEquitySpread: z.number().finite().min(-1).max(1),
   maxCryOutBid: z.number().finite().min(0).max(100_000_000),
   minLookFirstScore: z.number().finite().min(0).max(100),
+  minBidHeadroomPct: z.number().finite().min(0).max(0.95),
   maxLookFirst: z.number().int().min(1).max(25),
   weights: z.object({
     equitySpread: z.number().finite().min(0).max(100),
