@@ -675,3 +675,17 @@
 .stressMetrics p{display:grid;gap:.12rem;margin:0;padding:.55rem;border:1px solid #eadfb9;background:#fff;border-radius:7px}
 .stressMetrics span{font-size:.64rem;text-transform:uppercase;letter-spacing:.04em;color:#7a735e}
 .stressMetrics strong{font-size:.88rem}
+
+
+/* Property 360 evidence ledger */
+.evidenceLedger{margin:0 0 1rem;padding:1rem;border:1px solid #dfe4df;border-radius:10px;background:#fff}
+.evidenceRows{display:grid;gap:.45rem;margin-top:.7rem}
+.evidenceRow{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(100px,.7fr) auto;gap:.75rem;align-items:center;padding:.68rem .72rem;border:1px solid #e3e7e2;border-radius:8px;background:#fafbf9}
+.evidenceRow>div{display:grid;gap:.15rem;min-width:0}
+.evidenceRow strong{font-size:.78rem}
+.evidenceRow small{font-size:.68rem;line-height:1.35;color:#68736c}
+.evidenceValue{font-size:.78rem;font-weight:800;overflow-wrap:anywhere}
+.evidenceRow em{font-size:.61rem;font-style:normal;text-transform:uppercase;letter-spacing:.045em;border-radius:999px;padding:.22rem .42rem;white-space:nowrap}
+.evidenceKnown{background:#e9f6ee;color:#2c6344;border:1px solid #bfdcc9}
+.evidenceOpen{background:#fff4db;color:#765619;border:1px solid #ead39a}
+@media(max-width:760px){.evidenceRow{grid-template-columns:1fr}.evidenceRow em{width:max-content}.evidenceValue{font-size:.86rem}}
