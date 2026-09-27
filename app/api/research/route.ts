@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import {
   BuyBoxSchema,
   DEFAULT_BUY_BOX,
@@ -17,6 +18,8 @@ const MAX_PROPERTIES = 100;
 const MAX_CSV_BYTES = 1_000_000;
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, "research", 12, 600000);
+  if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   try {
     const body = (await request.json()) as {
       csv?: string;

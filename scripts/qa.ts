@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { calculateMaxBid, normalizeBuyBox, rescoreExisting, InputPropertySchema, type ScoredProperty } from "../lib/engine";
+import { checkRateLimit } from "../lib/rateLimit";
 
 function synthetic(overrides: Partial<ScoredProperty>): ScoredProperty {
   return {
@@ -119,6 +120,11 @@ function run() {
     synthetic({ parcel_id: "RELATED", property_type_hint: "related", cry_out_bid: 10000 }),
   ], strictBox);
   assert.equal(strictRows.some((p) => p.lookAtFirst), false, "Look First must not fill quotas with explicitly excluded risky deal types");
+
+  const req = new Request("https://firstlook.local/test", { headers: { "x-forwarded-for": "203.0.113.9" } });
+  assert.equal(checkRateLimit(req, "qa-rate", 2, 60000).ok, true, "first request should pass rate limit");
+  assert.equal(checkRateLimit(req, "qa-rate", 2, 60000).ok, true, "second request should pass rate limit");
+  assert.equal(checkRateLimit(req, "qa-rate", 2, 60000).ok, false, "third request should be throttled");
 
   console.log("FirstLook QA: all deterministic regression checks passed.");
 }

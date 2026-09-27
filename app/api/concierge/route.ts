@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { z } from "zod";
 
 export const runtime = "nodejs";
@@ -49,6 +50,8 @@ function providerReason(status: number) {
 }
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, "concierge", 20, 600000);
+  if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   try {
     const body = Body.parse(await request.json());
     const keyConfigured = Boolean(process.env.OPENAI_API_KEY);

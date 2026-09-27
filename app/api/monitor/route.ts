@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { z } from "zod";
 import { databaseConfigured, ensureSchema, getDb } from "@/lib/db";
 
@@ -11,6 +12,8 @@ const WatchSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, "monitor", 10, 3600000);
+  if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   try {
     const row = WatchSchema.parse(await request.json());
     if (!databaseConfigured()) {

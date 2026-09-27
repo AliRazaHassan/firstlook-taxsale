@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { databaseConfigured, ensureSchema, getDb } from "@/lib/db";
@@ -11,6 +12,8 @@ const SaveSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, "sessions", 30, 600000);
+  if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   try {
     if (!databaseConfigured()) return NextResponse.json({ error: "DATABASE_URL is not configured" }, { status: 503 });
     const body = SaveSchema.parse(await request.json());
