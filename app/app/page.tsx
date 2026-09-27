@@ -540,6 +540,7 @@ export default function AppPage() {
           question,
           property: selected ?? undefined,
           diligence,
+          analysis: { module: osModule, strategy: dealStrategy, inputs: dealInputs, results: dealAnalysis },
           portfolio: { total: data?.total, lookFirstCount: data?.lookFirstCount },
         }),
       });
