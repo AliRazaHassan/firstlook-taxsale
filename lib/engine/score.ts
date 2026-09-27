@@ -172,6 +172,8 @@ export function assignRanks(rows: Omit<ScoredProperty, "rank" | "lookAtFirst">[]
     if (picks >= buyBox.maxLookFirst) break;
     if (row.score < buyBox.minLookFirstScore) continue;
     if (row.maxBid == null || row.maxBid <= 0 || row.cry_out_bid >= row.maxBid) continue;
+    const bidHeadroomPct = (row.maxBid - row.cry_out_bid) / row.maxBid;
+    if (bidHeadroomPct < buyBox.minBidHeadroomPct) continue;
     if (row.propertyType.includes("vacant")) continue;
     if (row.equitySpread < buyBox.minEquitySpread) continue;
     if (buyBox.maxCryOutBid > 0 && row.cry_out_bid > buyBox.maxCryOutBid) continue;
