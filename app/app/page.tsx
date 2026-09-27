@@ -519,7 +519,25 @@ export default function AppPage() {
     const highPpsf = valid.length ? Math.max(...valid.map((comp) => comp.ppsf)) : 0;
     const low = subjectSqft > 0 && lowPpsf > 0 ? Math.round(subjectSqft * lowPpsf) : 0;
     const high = subjectSqft > 0 && highPpsf > 0 ? Math.round(subjectSqft * highPpsf) : 0;
-    return { valid, weightedPpsf, suggestedArv, low, high, confidence: valid.length >= 3 && subjectSqft > 0 ? "medium" : "low" };
+    const addressedCount = valid.filter((comp) => comp.address.trim().length >= 5).length;
+    const averageDistance = valid.length ? valid.reduce((sum, comp) => sum + comp.distanceMiles, 0) / valid.length : 0;
+    const ppsfSpreadPct = weightedPpsf > 0 ? (highPpsf - lowPpsf) / weightedPpsf : 0;
+    const qualityWarnings = [
+      valid.length < 3 ? "Use at least 3 valid sold comps before relying on this ARV." : null,
+      addressedCount < Math.min(3, valid.length) ? "Some comps are missing an address/source note." : null,
+      valid.length > 0 && averageDistance > 5 ? "Average comp distance is over 5 miles; local comparability may be weak." : null,
+      valid.length >= 2 && ppsfSpreadPct > 0.35 ? "Price-per-square-foot spread is wider than 35%; review outliers and adjustments." : null,
+      subjectSqft <= 0 ? "Subject living area is required for a $/sf ARV." : null,
+    ].filter(Boolean) as string[];
+    const confidence =
+      valid.length >= 3 &&
+      subjectSqft > 0 &&
+      addressedCount >= 3 &&
+      averageDistance <= 5 &&
+      ppsfSpreadPct <= 0.35
+        ? "medium"
+        : "low";
+    return { valid, weightedPpsf, suggestedArv, low, high, lowPpsf, highPpsf, addressedCount, averageDistance, ppsfSpreadPct, qualityWarnings, confidence };
   }, [manualComps, subjectSqft]);
 
   const rehabTotal = useMemo(() => Object.values(rehabItems).reduce((sum, value) => sum + Math.max(0, Number(value) || 0), 0), [rehabItems]);
@@ -590,6 +608,20 @@ export default function AppPage() {
     const cashBackFromRefi = Math.max(0, refiNet - remainingLoan);
     const initialCashBasis = cashNeeded;
     const cashLeftIn = Math.max(0, initialCashBasis - cashBackFromRefi);
+    const stressArv = d.arv * 0.9;
+    const stressRehab = d.rehab * 1.2;
+    const stressRehabContingency = stressRehab * safePct(d.contingencyPct);
+    const stressSellClosing = stressArv * safePct(d.sellClosingPct);
+    const stressFlipProfit = stressArv - d.purchasePrice - buyClosing - stressRehab - stressRehabContingency - holding - stressSellClosing - riskReserves;
+    const stressRate = Math.max(0, d.interestRate + 2) / 100 / 12;
+    const stressMortgage = loan <= 0 ? 0 : stressRate === 0 ? loan / payments : loan * stressRate * Math.pow(1 + stressRate, payments) / (Math.pow(1 + stressRate, payments) - 1);
+    const stressRent = d.monthlyRent * 0.9;
+    const stressVacancy = stressRent * safePct(d.vacancyPct);
+    const stressManagement = stressRent * safePct(d.managementPct);
+    const stressOperating = stressVacancy + stressManagement + d.taxesMonthly + d.insuranceMonthly + d.otherMonthly;
+    const stressCashFlow = stressRent - stressMortgage - stressOperating;
+    const stressNoi = (stressRent - stressOperating) * 12;
+    const stressDscr = stressMortgage > 0 ? stressNoi / (stressMortgage * 12) : 0;
     const warnings = [
       d.arv <= 0 ? "Working ARV is missing." : null,
       d.monthlyRent <= 0 && dealStrategy !== "flip" ? "Monthly rent is missing; rental returns are not decision-ready." : null,
@@ -598,7 +630,7 @@ export default function AppPage() {
       dealStrategy === "brrrr" && refiNet <= remainingLoan ? "Refinance proceeds do not exceed the estimated remaining acquisition loan, so no investor cash-out is modeled." : null,
       "Working ARV is an estimate until property-level sold comps are verified.",
     ].filter(Boolean) as string[];
-    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, annualDebtService, dscr, loanToValue, cashNeeded, rentalBasis, capRate, cashOnCash, flipProfit, flipRoi, totalProjectCost, targetProfit, riskReserves, mao, refiGross, refiClosing, refiNet, remainingLoan, cashBackFromRefi, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings };
+    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, annualDebtService, dscr, loanToValue, cashNeeded, rentalBasis, capRate, cashOnCash, flipProfit, flipRoi, totalProjectCost, targetProfit, riskReserves, mao, refiGross, refiClosing, refiNet, remainingLoan, cashBackFromRefi, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings, stress: { arv: stressArv, rehab: stressRehab, flipProfit: stressFlipProfit, interestRate: d.interestRate + 2, rent: stressRent, cashFlow: stressCashFlow, dscr: stressDscr } };
   }, [dealInputs, dealStrategy]);
 
   const investorIntel = useMemo(() => {
