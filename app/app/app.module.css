@@ -690,3 +690,132 @@
 .evidenceKnown{background:#e9f6ee;color:#2c6344;border:1px solid #bfdcc9}
 .evidenceOpen{background:#fff4db;color:#765619;border:1px solid #ead39a}
 @media(max-width:760px){.evidenceRow{grid-template-columns:1fr}.evidenceRow em{width:max-content}.evidenceValue{font-size:.86rem}}
+
+
+/* 2026 UI density pass: consistent spacing across every Real Estate OS module */
+.osWorkspace{
+  max-width:1600px;
+  padding:clamp(.8rem,1.25vw,1.15rem) clamp(.85rem,1.8vw,1.5rem);
+  gap:.85rem;
+}
+.osHero{
+  gap:.75rem;
+  align-items:center;
+}
+.osHero>div{min-width:0}
+.osHero h1{
+  margin:.3rem 0 .18rem;
+  font-size:clamp(1.65rem,2.3vw,2.15rem);
+  line-height:1.05;
+}
+.osHero p{line-height:1.35}
+.osHero .btn{flex:0 0 auto}
+
+.moduleGrid,
+.analyzerGrid,
+.commandGrid{
+  align-items:start;
+  gap:.85rem;
+}
+.moduleGrid>.panel,
+.analyzerGrid>.panel,
+.commandGrid>.panel{
+  align-self:start;
+  padding:1rem!important;
+}
+.moduleGrid h2,
+.analyzerGrid h2{
+  margin:0 0 .75rem;
+  font-size:clamp(1.05rem,1.5vw,1.28rem);
+  line-height:1.15;
+}
+.moduleGrid p,
+.analyzerGrid p{
+  line-height:1.4;
+}
+.rehabGrid,
+.sidebarGrid,
+.inputGrid{
+  gap:.5rem .6rem;
+}
+.rehabGrid label,
+.inputGrid label{
+  gap:.22rem;
+  line-height:1.25;
+}
+.rehabGrid input,
+.inputGrid input,
+.moduleGrid input,
+.moduleGrid select,
+.moduleGrid textarea{
+  min-height:40px;
+  padding:.55rem .65rem;
+}
+.moduleMetrics{
+  gap:.45rem;
+  margin:.55rem 0;
+}
+.moduleMetrics p{
+  padding:.55rem .62rem;
+  min-height:64px;
+  align-content:center;
+}
+.moduleMetrics p>span{line-height:1.2}
+.moduleMetrics p>strong{
+  line-height:1.2;
+  font-size:.96rem;
+}
+.moduleActions{
+  margin-top:.65rem;
+  gap:.45rem;
+}
+.inlineWarning{
+  margin:.65rem 0 0;
+  line-height:1.35;
+}
+.strategyTabs{
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.strategyTabs button,
+.osNav button{
+  min-height:36px;
+  padding:.42rem .68rem;
+}
+.osMetrics{
+  gap:.55rem;
+}
+.osMetrics>div{
+  padding:.72rem .8rem;
+}
+.commandHero{
+  padding:1rem 1.1rem;
+}
+.commandMetrics{gap:.55rem}
+.commandMetrics>div{padding:.75rem .8rem}
+.propertyBrief{padding:.82rem .9rem}
+.evidenceLedger{padding:.85rem}
+.evidenceRow{padding:.58rem .62rem}
+
+@media(min-width:1500px){
+  .moduleGrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .osWorkspace{max-width:1580px}
+}
+@media(max-width:1100px){
+  .osHero{align-items:flex-start}
+  .strategyTabs{justify-content:flex-start}
+}
+@media(max-width:760px){
+  .osWorkspace{padding:.65rem;gap:.7rem}
+  .moduleGrid>.panel,.analyzerGrid>.panel,.commandGrid>.panel{padding:.82rem!important}
+  .osHero h1{font-size:1.6rem}
+  .osHero>.btn{width:100%}
+  .strategyTabs{width:100%}
+  .strategyTabs button{flex:1 1 auto}
+  .moduleMetrics{grid-template-columns:1fr 1fr}
+}
+@media(max-width:520px){
+  .moduleMetrics{grid-template-columns:1fr}
+  .moduleActions{display:grid}
+  .moduleActions .btn{width:100%}
+}
