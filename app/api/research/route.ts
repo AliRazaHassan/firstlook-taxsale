@@ -5,6 +5,7 @@ import {
   impactStats,
   parseTaxSaleCsv,
   researchProperties,
+  attachDealTruthScores,
 } from "@/lib/engine";
 import { attachMaxBids } from "@/lib/engine/maxBid";
 
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
 
     let results = await researchProperties(properties, buyBox);
     if (body.bidDefaults) {
-      results = attachMaxBids(results, body.bidDefaults);
+      results = attachDealTruthScores(attachMaxBids(results, body.bidDefaults));
     }
     const impact = impactStats(results);
 
