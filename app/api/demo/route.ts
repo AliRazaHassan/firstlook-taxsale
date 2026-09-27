@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import demoResults from "@/data/demo-results.json";
-import { attachMaxBids, impactStats, type ScoredProperty } from "@/lib/engine";
+import { attachDealTruthScores, attachMaxBids, impactStats, type ScoredProperty } from "@/lib/engine";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const withBids = attachMaxBids(demoResults as ScoredProperty[]);
+  const withBids = attachDealTruthScores(attachMaxBids(demoResults as ScoredProperty[]));
   const impact = impactStats(withBids);
 
   return NextResponse.json({
