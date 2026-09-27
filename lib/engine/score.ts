@@ -177,18 +177,6 @@ export function assignRanks(rows: Omit<ScoredProperty, "rank" | "lookAtFirst">[]
     picks += 1;
   }
 
-  if (picks < buyBox.maxLookFirst) {
-    for (const row of ranked) {
-      if (picks >= buyBox.maxLookFirst) break;
-      if (row.lookAtFirst) continue;
-      if (row.score < buyBox.minLookFirstScore) continue;
-      if (row.propertyType.includes("vacant")) continue;
-      if (row.equitySpread < buyBox.minEquitySpread) continue;
-      if (buyBox.maxCryOutBid > 0 && row.cry_out_bid > buyBox.maxCryOutBid) continue;
-      row.lookAtFirst = true;
-      picks += 1;
-    }
-  }
 
   return ranked;
 }
