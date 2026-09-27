@@ -7,6 +7,7 @@ const Body = z.object({
   question: z.string().trim().min(1).max(1200),
   property: z.record(z.unknown()).optional(),
   diligence: z.record(z.unknown()).nullable().optional(),
+  analysis: z.record(z.unknown()).optional(),
   portfolio: z.object({
     total: z.number().optional(),
     lookFirstCount: z.number().optional(),
