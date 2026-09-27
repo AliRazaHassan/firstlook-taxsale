@@ -121,6 +121,10 @@ function run() {
   ], strictBox);
   assert.equal(strictRows.some((p) => p.lookAtFirst), false, "Look First must not fill quotas with explicitly excluded risky deal types");
 
+  const evidenceBox = normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1 });
+  const missingHistory = rescoreExisting([synthetic({ parcel_id: "MISSING-HISTORY", tax_years: "", taxYearsList: [], delinquencyYears: 0 })], evidenceBox);
+  assert(missingHistory[0]?.redFlags.some((f) => /history missing/i.test(f)), "missing delinquency history must be explicit, not silently rewarded");
+
   const overbidBox = normalizeBuyBox({ minLookFirstScore: 0, minEquitySpread: -1, maxCryOutBid: 0, maxLookFirst: 5 });
   const overbidRows = rescoreExisting([
     synthetic({ parcel_id: "OVER-MAX", assessed_fmv: 100000, estimatedMarketMid: 100000, cry_out_bid: 90000 }),
