@@ -760,7 +760,7 @@ export default function AppPage() {
         body: JSON.stringify(useEngineer ? {
           request: question, module: osModule, strategy: dealStrategy, inputs: dealInputs, results: dealAnalysis, property: selected ?? undefined
         } : {
-          question, property: selected ?? undefined, diligence,
+          question, history: conciergeMessages.slice(-8), property: selected ?? undefined, diligence,
           analysis: { module: osModule, strategy: dealStrategy, inputs: dealInputs, results: dealAnalysis },
           portfolio: { total: data?.total, lookFirstCount: data?.lookFirstCount },
         }),
@@ -1614,7 +1614,7 @@ export default function AppPage() {
               <button key={q} className="btn btn-ghost" onClick={() => void askConcierge(q)} disabled={conciergeLoading}>{q}</button>
             ))}
           </div>
-          <div className={styles.copilotAdmin}><span>Admin repair mode</span><input type="password" autoComplete="off" value={engineerKey} onChange={(e)=>setEngineerKey(e.target.value)} placeholder="Admin key (only needed to diagnose/fix app issues)" /></div><div className={styles.conciergeInput}>
+          <details className={styles.copilotAdmin}><summary>Developer diagnostics</summary><div><span>Admin repair mode</span><input type="password" autoComplete="off" value={engineerKey} onChange={(e)=>setEngineerKey(e.target.value)} placeholder="Admin key for calculation / UI diagnostics" /></div></details><div className={styles.conciergeInput}>
             <textarea rows={2} value={conciergeQuestion} onChange={(e) => setConciergeQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askConcierge(); } }} placeholder="Ask about the deal, or say: audit this calculation / find the issue / fix this feature…" />
             <button className="btn btn-primary" onClick={() => void askConcierge()} disabled={conciergeLoading || !conciergeQuestion.trim()}>Ask</button>
           </div>
