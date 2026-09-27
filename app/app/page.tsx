@@ -1290,7 +1290,7 @@ export default function AppPage() {
                       ["all", `All (${filterCounts.all})`],
                       ["look", `Look first (${filterCounts.look})`],
                       ["flagged", `Flags (${filterCounts.flagged})`],
-                      ["clean", `Clean (${filterCounts.clean})`],
+                      ["clean", `No auto flags (${filterCounts.clean})`],
                       ["headroom", `Bid OK (${filterCounts.headroom})`],
                       ["overbid", `Walk (${filterCounts.overbid})`],
                     ] as const
