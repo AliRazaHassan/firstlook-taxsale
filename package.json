@@ -11,7 +11,8 @@
     "research:sheets": "tsx src-cli/index.ts --sheets",
     "typecheck": "tsc --noEmit",
     "qa": "tsx scripts/qa.ts",
-    "prebuild": "npm run qa && npm audit --audit-level=high"
+    "prebuild": "npm run qa && npm run qa:routes && npm audit --audit-level=high",
+    "qa:routes": "tsx scripts/qa-routes.ts"
   },
   "engines": {
     "node": ">=20"
