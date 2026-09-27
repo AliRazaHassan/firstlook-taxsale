@@ -423,7 +423,7 @@ export default function AppPage() {
       setWorkspaceLoadedParcel(null);
       return;
     }
-    const b = normalizeBidDefaults(bidDefaults);
+    const b = normalizeBidDefaults(bidRef.current);
     const defaultComps: ManualComp[] = [
       { id: 1, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
       { id: 2, address: "", salePrice: 0, sqft: 0, distanceMiles: 0, adjustment: 0 },
@@ -479,9 +479,12 @@ export default function AppPage() {
           adjustment: Number(comp.adjustment) || 0,
         }))
       : defaultComps);
-    setRehabItems({ ...defaultRehab, ...(saved?.rehabItems ?? {}) });
+    setRehabItems((Object.keys(defaultRehab) as RehabKey[]).reduce((acc, key) => {
+      acc[key] = Math.max(0, Number(saved?.rehabItems?.[key] ?? defaultRehab[key]) || 0);
+      return acc;
+    }, { ...defaultRehab }));
     setWorkspaceLoadedParcel(selected.parcel_id);
-  }, [selected?.parcel_id, bidDefaults]);
+  }, [selected?.parcel_id]);
 
   useEffect(() => {
     if (!selected?.parcel_id || workspaceLoadedParcel !== selected.parcel_id) return;
