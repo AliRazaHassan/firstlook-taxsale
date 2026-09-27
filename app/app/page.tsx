@@ -854,11 +854,120 @@ export default function AppPage() {
             </>
           ) : selected ? (
             <div className={styles.moduleGrid}>
-              {osModule === "comps" && <><div className="panel"><h2>Valuation evidence</h2><p>Assessed FMV <strong>{money(selected.assessed_fmv)}</strong></p><p>Modeled market context <strong>{money(selected.estimatedMarketMid)}</strong> <em className={styles.evidenceEstimate}>Estimate</em></p><p>ACS tract median <strong>{money(selected.tractMedianHomeValue)}</strong> <em className={styles.evidencePublic}>Public data</em></p><p className="muted">Property-level sold comps are the next data connector; neighborhood estimates are not treated as verified comps.</p></div><div className="panel"><h2>ARV workspace</h2><p>Working ARV <strong>{money(dealInputs.arv)}</strong> <em className={styles.evidenceEstimate}>Unverified estimate</em></p><button className="btn btn-primary" onClick={()=>setOsModule("analyzer")}>Use in analyzer</button></div></>}
-              {osModule === "rehab" && <div className="panel"><h2>Rehab budget</h2><p>Current working budget <strong>{money(dealInputs.rehab)}</strong></p><input type="number" value={dealInputs.rehab} onChange={e=>setDealInputs(v=>({...v,rehab:Number(e.target.value)||0}))}/><p className="muted">Changes flow directly into Flip / Rental / BRRRR analysis.</p></div>}
-              {osModule === "financing" && <div className="panel"><h2>Financing scenario</h2><p>Loan <strong>{money(dealAnalysis.loan)}</strong></p><p>Down payment <strong>{money(dealAnalysis.down)}</strong></p><p>Payment <strong>{money(dealAnalysis.mortgage)}/mo</strong></p><button className="btn btn-primary" onClick={()=>setOsModule("analyzer")}>Edit financing assumptions</button></div>}
-              {osModule === "diligence" && <div className="panel"><h2>Diligence status</h2><p><strong>{Object.values(checkedItems).filter(Boolean).length}/{diligence?.checklist.length ?? 0}</strong> checks complete</p><p>{diligence?.rules.label}</p><button className="btn btn-primary" onClick={()=>void askConcierge("Review the current diligence checklist and tell me what remains unverified and why it matters.")}>✦ Review with AI</button></div>}
-              {osModule === "pipeline" && <div className="panel"><h2>Deal pipeline</h2><div className={styles.pipelineStages}>{["New","Researching","Due diligence","Offer","Under contract","Rehab","Listed / Rented","Exited"].map((s,i)=><span key={s} className={i===1 ? styles.stageActive : ""}>{s}</span>)}</div><p className="muted">Property CRM persistence and tasks are the next backend step.</p></div>}
+              {osModule === "comps" && <>
+                <div className="panel">
+                  <h2>Valuation evidence</h2>
+                  <div className={styles.moduleMetrics}>
+                    <p><span>Assessed FMV</span><strong>{money(selected.assessed_fmv)}</strong><em className={styles.evidencePublic}>Public record</em></p>
+                    <p><span>Modeled context</span><strong>{money(selected.estimatedMarketMid)}</strong><em className={styles.evidenceEstimate}>Estimate</em></p>
+                    <p><span>ACS tract median</span><strong>{money(selected.tractMedianHomeValue)}</strong><em className={styles.evidencePublic}>Neighborhood</em></p>
+                    <p><span>Working ARV</span><strong>{money(dealInputs.arv)}</strong><em className={styles.evidenceEstimate}>Unverified</em></p>
+                  </div>
+                  <div className="field"><label>Subject living area (sq ft)</label><input type="number" min="0" value={subjectSqft} onChange={(e)=>setSubjectSqft(Math.max(0,Number(e.target.value)||0))}/></div>
+                  <p className="muted">Enter real sold comps below. FirstLook weights closer comps more heavily, but manual entries are still user-supplied evidence until source documents are attached.</p>
+                </div>
+                <div className="panel">
+                  <h2>Manual sold comps</h2>
+                  <div className={styles.compRows}>
+                    {manualComps.map((comp,index)=>{
+                      const calc=compAnalysis.valid.find((v)=>v.id===comp.id);
+                      return <div className={styles.compRow} key={comp.id}>
+                        <strong>Comp {index+1}</strong>
+                        <input aria-label={`Comp ${index+1} address`} placeholder="Address / source note" value={comp.address} onChange={(e)=>setManualComps(rows=>rows.map(row=>row.id===comp.id?{...row,address:e.target.value}:row))}/>
+                        <input aria-label={`Comp ${index+1} sale price`} type="number" min="0" placeholder="Sale price" value={comp.salePrice||""} onChange={(e)=>setManualComps(rows=>rows.map(row=>row.id===comp.id?{...row,salePrice:Math.max(0,Number(e.target.value)||0)}:row))}/>
+                        <input aria-label={`Comp ${index+1} sqft`} type="number" min="0" placeholder="Sq ft" value={comp.sqft||""} onChange={(e)=>setManualComps(rows=>rows.map(row=>row.id===comp.id?{...row,sqft:Math.max(0,Number(e.target.value)||0)}:row))}/>
+                        <input aria-label={`Comp ${index+1} distance`} type="number" min="0" step="0.1" placeholder="Miles" value={comp.distanceMiles||""} onChange={(e)=>setManualComps(rows=>rows.map(row=>row.id===comp.id?{...row,distanceMiles:Math.max(0,Number(e.target.value)||0)}:row))}/>
+                        <input aria-label={`Comp ${index+1} adjustment`} type="number" step="100" placeholder="Adjustment +/- $" value={comp.adjustment||""} onChange={(e)=>setManualComps(rows=>rows.map(row=>row.id===comp.id?{...row,adjustment:Number(e.target.value)||0}:row))}/>
+                        <span className="mono">{calc ? `${Math.round(calc.ppsf).toLocaleString()}/sf` : "—/sf"}</span>
+                      </div>;
+                    })}
+                  </div>
+                  <div className={styles.moduleMetrics}>
+                    <p><span>Valid comps</span><strong>{compAnalysis.valid.length}/3</strong></p>
+                    <p><span>Weighted $/sf</span><strong>{compAnalysis.weightedPpsf ? `${Math.round(compAnalysis.weightedPpsf).toLocaleString()}` : "—"}</strong></p>
+                    <p><span>Comp ARV range</span><strong>{compAnalysis.low ? `${money(compAnalysis.low)}–${money(compAnalysis.high)}` : "—"}</strong></p>
+                    <p><span>Suggested ARV</span><strong>{money(compAnalysis.suggestedArv)}</strong><em className={styles.evidenceAssumption}>{compAnalysis.confidence} confidence</em></p>
+                  </div>
+                  <div className={styles.moduleActions}>
+                    <button className="btn btn-primary" disabled={!compAnalysis.suggestedArv} onClick={()=>setDealInputs(v=>({...v,arv:compAnalysis.suggestedArv}))}>Use comp ARV in analyzer</button>
+                    <button className="btn btn-ghost" onClick={()=>void askConcierge(`Review my manual comp set: subject ${subjectSqft} sqft, weighted price per sqft ${Math.round(compAnalysis.weightedPpsf)}, suggested ARV ${compAnalysis.suggestedArv}. Tell me what makes these comps weak or strong and what evidence is still missing.`)}>✦ Audit comps</button>
+                  </div>
+                </div>
+              </>}
+              {osModule === "rehab" && <>
+                <div className="panel">
+                  <h2>Itemized rehab estimator</h2>
+                  <div className={styles.rehabGrid}>
+                    {(Object.entries(REHAB_LABELS) as Array<[RehabKey,string]>).map(([key,label])=><label key={key}><span>{label}</span><input type="number" min="0" value={rehabItems[key]} onChange={(e)=>setRehabItems(items=>({...items,[key]:Math.max(0,Number(e.target.value)||0)}))}/></label>)}
+                  </div>
+                  <p className="muted">Use contractor quotes when available. This estimator is an assumption workspace, not a condition inspection.</p>
+                </div>
+                <div className="panel">
+                  <h2>Rehab budget summary</h2>
+                  <div className={styles.moduleMetrics}>
+                    <p><span>Itemized base</span><strong>{money(rehabTotal)}</strong></p>
+                    <p><span>Contingency ({dealInputs.contingencyPct}%)</span><strong>{money(rehabTotal*(dealInputs.contingencyPct/100))}</strong></p>
+                    <p><span>All-in rehab reserve</span><strong>{money(rehabTotal*(1+dealInputs.contingencyPct/100))}</strong></p>
+                    <p><span>Analyzer base rehab</span><strong>{money(dealInputs.rehab)}</strong></p>
+                  </div>
+                  <div className={styles.moduleActions}>
+                    <button className="btn btn-primary" onClick={()=>setDealInputs(v=>({...v,rehab:rehabTotal}))}>Apply itemized base to analyzer</button>
+                    <button className="btn btn-ghost" onClick={()=>void askConcierge(`Audit this rehab assumption: base rehab ${money(rehabTotal)}, contingency ${dealInputs.contingencyPct}%, property ${selected.cleanAddress}. Identify missing scopes and risk areas without inventing condition facts.`)}>✦ Audit rehab budget</button>
+                  </div>
+                </div>
+              </>}
+              {osModule === "financing" && <>
+                <div className="panel">
+                  <h2>Financing assumptions</h2>
+                  <div className={styles.rehabGrid}>
+                    {([["downPaymentPct","Down payment %"],["interestRate","Interest rate %"],["loanYears","Loan term (years)"],["taxesMonthly","Taxes / mo"],["insuranceMonthly","Insurance / mo"],["otherMonthly","Other operating / mo"]] as const).map(([key,label])=><label key={key}><span>{label}</span><input type="number" min="0" value={dealInputs[key]} onChange={(e)=>setDealInputs(v=>({...v,[key]:normalizeDealInput(key,Number(e.target.value))}))}/></label>)}
+                  </div>
+                  <p className="muted">Financing outputs use standard amortization. Taxes, insurance and rent remain assumptions until verified.</p>
+                </div>
+                <div className="panel">
+                  <h2>Debt + coverage</h2>
+                  <div className={styles.moduleMetrics}>
+                    <p><span>Loan amount</span><strong>{money(dealAnalysis.loan)}</strong></p>
+                    <p><span>Down payment</span><strong>{money(dealAnalysis.down)}</strong></p>
+                    <p><span>Monthly P&I</span><strong>{money(dealAnalysis.mortgage)}</strong></p>
+                    <p><span>Loan / working ARV</span><strong>{pct(dealAnalysis.loanToValue)}</strong></p>
+                    <p><span>Annual debt service</span><strong>{money(dealAnalysis.annualDebtService)}</strong></p>
+                    <p><span>DSCR</span><strong>{dealAnalysis.dscr>0?dealAnalysis.dscr.toFixed(2):"—"}</strong></p>
+                  </div>
+                  {dealInputs.monthlyRent<=0?<p className={styles.inlineWarning}>Add verified market rent before treating DSCR or cash flow as decision-ready.</p>:null}
+                  <div className={styles.moduleActions}><button className="btn btn-primary" onClick={()=>setOsModule("analyzer")}>Open full analyzer</button><button className="btn btn-ghost" onClick={()=>void askConcierge("Audit the current financing assumptions, debt service, LTV, DSCR and cash flow. Separate missing assumptions from actual formula risks.")}>✦ Audit financing</button></div>
+                </div>
+              </>}
+              {osModule === "diligence" && <>
+                <div className="panel">
+                  <h2>Diligence status</h2>
+                  <div className={styles.moduleMetrics}>
+                    <p><span>Checks complete</span><strong>{Object.values(checkedItems).filter(Boolean).length}/{diligence?.checklist.length ?? 0}</strong></p>
+                    <p><span>Jurisdiction rules</span><strong>{diligence?.rules.label ?? "Loading…"}</strong></p>
+                    <p><span>Valuation confidence</span><strong>{diligence?.valuation.label ?? "—"}</strong></p>
+                    <p><span>Overbid risk</span><strong>{diligence?.overbid.level ?? "—"}</strong></p>
+                  </div>
+                  <p className="muted">{diligence?.valuation.detail}</p>
+                  <button className="btn btn-primary" onClick={()=>void askConcierge("Review the current diligence checklist and tell me what remains unverified, which items are highest consequence, and why they matter.")}>✦ Review with AI</button>
+                </div>
+                <div className="panel">
+                  <h2>Verification checklist</h2>
+                  <div className={styles.diligenceList}>{diligence?.checklist.map(item=><label key={item.id} className={styles.diligenceRow}><input type="checkbox" checked={!!checkedItems[item.id]} onChange={()=>toggleCheck(item.id)}/><span><strong>{item.label}</strong>{item.autoHint?<small>{item.autoHint}</small>:null}</span><em>{item.severity}</em></label>)}</div>
+                </div>
+              </>}
+              {osModule === "pipeline" && <>
+                <div className="panel">
+                  <h2>Deal pipeline</h2>
+                  <p className="muted">Stage is saved per parcel in this browser until account persistence is connected.</p>
+                  <div className={styles.pipelineStages}>{PIPELINE_STAGES.map((stage)=><button key={stage} className={pipelineStage===stage?styles.stageActive:""} onClick={()=>savePipeline(stage,pipelineNote)}>{stage}</button>)}</div>
+                  <div className={styles.moduleMetrics}><p><span>Current stage</span><strong>{pipelineStage}</strong></p><p><span>Deal</span><strong>{selected.cleanAddress}</strong></p></div>
+                </div>
+                <div className="panel">
+                  <h2>Next-action note</h2>
+                  <textarea className={styles.pipelineNote} rows={7} value={pipelineNote} onChange={(e)=>savePipeline(pipelineStage,e.target.value)} placeholder="Example: Order title search, verify occupancy, call county about payment window…"/>
+                  <div className={styles.moduleActions}><button className="btn btn-primary" onClick={()=>void askConcierge(`Pipeline stage: ${pipelineStage}. Note: ${pipelineNote || "none"}. Based only on current FirstLook evidence, give me the next three actions for this deal.`)}>✦ Suggest next actions</button></div>
+                </div>
+              </>}
               {osModule === "portfolio" && <div className={styles.commandCenter}>
                 <div className={styles.commandHero}>
                   <div><span className="pill pill-mint">Investor Command Center</span><h2>Know what deserves attention now.</h2><p className="muted">Research pipeline intelligence — not acquired-asset accounting. Portfolio ownership metrics activate when persistent acquired assets are connected.</p></div>
