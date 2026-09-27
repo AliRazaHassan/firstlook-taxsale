@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { BuyBoxSchema, DEFAULT_BUY_BOX, impactStats, normalizeBuyBox, rescoreExisting, type ScoredProperty } from "@/lib/engine";
 
 export const runtime = "nodejs";
 const MAX_PROPERTIES = 100;
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, "rescore", 60, 600000);
+  if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   try {
     const body = (await request.json()) as {
       properties?: ScoredProperty[];
