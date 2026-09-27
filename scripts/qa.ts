@@ -65,6 +65,12 @@ function run() {
   assert.equal(normalized.minEquitySpread, 1, "minEquitySpread should clamp to 1");
   const headroomClamp = normalizeBuyBox({ minBidHeadroomPct: 2 });
   assert.equal(headroomClamp.minBidHeadroomPct, 0.95, "bid headroom should clamp to 95%");
+  const extremeBox = normalizeBuyBox({ minAssessedValue: 1e12, maxCryOutBid: 999_999_999, redFlags: { lowAssessedValue: 1e12, highTaxBurdenRatio: 5, longDelinquencyYears: 100 }, weights: { equitySpread: 1000, taxBurden: -10 } });
+  assert.equal(extremeBox.minAssessedValue, 100_000_000);
+  assert.equal(extremeBox.maxCryOutBid, 100_000_000);
+  assert.equal(extremeBox.redFlags.lowAssessedValue, 100_000_000);
+  assert.equal(extremeBox.weights.equitySpread, 100);
+  assert.equal(extremeBox.weights.taxBurden, 0);
 
   const invalidJurisdiction = InputPropertySchema.safeParse({
     parcel_id: "NO-JURISDICTION",
@@ -222,6 +228,16 @@ function run() {
     evictionPossession: 1500, auctionFees: 800, redemptionCarry: 0,
   };
   const baseFlip = calculateDealAnalysis(baseDeal, "flip");
+  const baseRental = calculateDealAnalysis(baseDeal, "rental");
+  const baseBrrrr = calculateDealAnalysis(baseDeal, "brrrr");
+  const refiPrincipal = baseDeal.arv * baseDeal.refiLtvPct / 100;
+  const monthlyRate = baseDeal.interestRate / 1200;
+  const monthlyPayments = baseDeal.loanYears * 12;
+  const expectedRefiPayment = refiPrincipal * monthlyRate / (1 - Math.pow(1 + monthlyRate, -monthlyPayments));
+  assert(Math.abs(baseBrrrr.mortgage - expectedRefiPayment) < 0.01, "BRRRR operating mortgage must amortize the refinance principal");
+  assert(Math.abs(baseBrrrr.cashFlow - (baseDeal.monthlyRent - baseDeal.monthlyRent * .13 - baseDeal.taxesMonthly - baseDeal.insuranceMonthly - baseDeal.otherMonthly - expectedRefiPayment)) < 0.01, "BRRRR cash flow must use refinance debt service");
+  assert(baseBrrrr.cashFlow < baseRental.cashFlow, "larger refinance loan must reduce stabilized cash flow");
+  assert.equal(baseBrrrr.annualDebtService, baseBrrrr.mortgage * 12);
   const riskierFlip = calculateDealAnalysis({ ...baseDeal, titleLegal: 10000, survivingLiens: 15000 }, "flip");
   assert(riskierFlip.flipProfit < baseFlip.flipProfit, "more risk reserves must lower flip profit");
   assert(riskierFlip.mao < baseFlip.mao, "more risk reserves must lower MAO");

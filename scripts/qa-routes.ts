@@ -9,6 +9,7 @@ import { GET as healthGET } from "../app/api/health/route";
 import { POST as monitorPOST } from "../app/api/monitor/route";
 import { POST as sessionsPOST } from "../app/api/sessions/route";
 import { POST as researchPOST } from "../app/api/research/route";
+import { POST as conciergePOST } from "../app/api/concierge/route";
 
 let ipCounter = 10;
 function jsonRequest(url: string, body: unknown, headers: Record<string,string> = {}) {
@@ -42,6 +43,9 @@ function seededCsv(count: number) {
 }
 
 async function run() {
+  const scoreAnswer = await conciergePOST(jsonRequest("https://qa.local/api/concierge", { question: "Does checking diligence boxes change the score?" }));
+  assert.equal(scoreAnswer.status, 200);
+  assert.match((await jsonBody<{answer:string}>(scoreAnswer)).answer, /does not read checklist marks/i);
   // Seed/upload-style CSV ingestion.
   const seeded = parseTaxSaleCsv(seededCsv(50));
   assert.equal(seeded.length, 50, "50-row seeded CSV should parse");

@@ -54,6 +54,12 @@ export async function POST(request: Request) {
   if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   try {
     const body = Body.parse(await request.json());
+    if (/\b(score|ranking|rank)\b/i.test(body.question) && /\b(checklist|diligence box|checking|check boxes|checked boxes)\b/i.test(body.question)) {
+      return NextResponse.json({
+        answer: "No. Marking diligence checklist items changes only your saved workflow progress. The Property Score is recalculated from sale-list figures, property type, tax-year history, neighborhood context and Buy Box weights. It does not read checklist marks or manual comps. Deal Truth is a separate automated score; it also does not certify completed diligence. Verify the evidence before bidding.",
+        deterministic: true,
+      }, { headers: { "Cache-Control": "no-store" } });
+    }
     const keyConfigured = Boolean(process.env.OPENAI_API_KEY);
     console.info("Concierge request", {
       keyConfigured,
@@ -90,7 +96,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: process.env.OPENAI_CONCIERGE_MODEL || "gpt-4.1-mini",
         instructions:
-          "You are FirstLook Copilot, a real-estate and tax-sale decision-support assistant embedded across the product. The analysis object contains the active module, strategy, deterministic Deal Analyzer inputs/results, and moduleContext for comps, rehab, financing, diligence, pipeline, Buy Box and bid assumptions. Use the active module's exact supplied fields when answering and explicitly call out contradictions across modules. Explain deterministic calculations in plain English; never replace them with invented AI math. Be concise and practical. Never invent property facts, liens, title status, county law, sold comps, occupancy, condition, rent, taxes, insurance, contractor quotes, or redemption facts. Manual comps and rehab line items are user-supplied assumptions unless verified evidence is explicitly present. Clearly distinguish public-record facts, model estimates, user assumptions, and missing verification. Never guarantee safety or profit. When evidence is missing, name exactly what must be verified and suggest the next in-product module/action. Do not present yourself as a lawyer, title examiner, appraiser, contractor, or financial adviser.",
+          "You are FirstLook Copilot, a real-estate and tax-sale decision-support assistant embedded across the product. The analysis object contains the active module, strategy, deterministic Deal Analyzer inputs/results, and moduleContext for comps, rehab, financing, diligence, pipeline, Buy Box and bid assumptions. Use the active module's exact supplied fields when answering and explicitly call out contradictions across modules. Property Score (property.score) is a Buy Box weighted ranking based on equity spread, cry-out/FMV, tax-year history, property type and neighborhood context. Deal Truth (property.dealTruth) is a separate automated metric with its own components. Never conflate them or call a Deal Truth component part of Property Score. Checking diligence boxes and adding manual comps do not change either score in the current implementation; do not promise a future increase in confidence or scores. Explain deterministic calculations in plain English; never replace them with invented AI math. Be concise and practical. Never invent property facts, liens, title status, county law, sold comps, occupancy, condition, rent, taxes, insurance, contractor quotes, or redemption facts. Manual comps and rehab line items are user-supplied assumptions unless verified evidence is explicitly present. Clearly distinguish public-record facts, model estimates, user assumptions, and missing verification. Never guarantee safety or profit. When evidence is missing, name exactly what must be verified and suggest the next in-product module/action. Do not present yourself as a lawyer, title examiner, appraiser, contractor, or financial adviser.",
         input: `FIRSTLOOK CONTEXT (including recent conversation when available):\n${context}\n\nCURRENT USER QUESTION:\n${body.question}`,
         max_output_tokens: 650,
       }),

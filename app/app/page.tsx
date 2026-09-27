@@ -610,8 +610,7 @@ export default function AppPage() {
     const totalModeledValue = props.reduce((s,p)=>s+(p.estimatedMarketMid ?? p.assessed_fmv ?? 0),0);
     const totalCryOut = props.reduce((s,p)=>s+(p.cry_out_bid ?? 0),0);
     const flagged = props.filter(p=>p.redFlags.length>0).length;
-    const selectedReadiness = Math.max(0, 100 - Math.min(100, missing.length * 16));
-    return { missing, look, totalModeledValue, totalCryOut, flagged, selectedReadiness };
+    return { missing, look, totalModeledValue, totalCryOut, flagged };
   }, [data, diligence, checkedItems, dealStrategy, dealInputs.monthlyRent, dealInputs.taxesMonthly, dealInputs.insuranceMonthly]);
 
   const evidenceLedger = useMemo(() => {
@@ -1004,7 +1003,7 @@ export default function AppPage() {
           {selected && (osModule === "property360" || osModule === "analyzer") ? (
             <>
               {osModule === "property360" ? <>
-                <div className={styles.propertyBrief}><div><span className={styles.eyebrow}>Deal intelligence</span><h2>{investorIntel.selectedReadiness >= 70 ? "Analysis is progressing — verify the remaining evidence." : "This deal is not decision-ready yet."}</h2><p>{investorIntel.missing[0]?.why ?? "Core evidence is present. Review diligence before committing capital."}</p></div><div className={styles.briefActions}><button className="btn btn-primary" onClick={()=>setOsModule(investorIntel.missing[0]?.module ?? "diligence")}>Resolve next issue →</button><button className="btn btn-ghost" onClick={()=>void askConcierge("Create a Property 360 deal brief using the Evidence Ledger. Separate facts, estimates, assumptions, unresolved evidence and next verification steps.")}>✦ AI deal brief</button></div></div>
+                <div className={styles.propertyBrief}><div><span className={styles.eyebrow}>Deal intelligence</span><h2>{investorIntel.missing.length ? "This deal is not decision-ready yet." : "Review source evidence before bidding."}</h2><p>{investorIntel.missing[0]?.why ?? "Workflow items are marked complete. Confirm supporting documents and current auction status."}</p></div><div className={styles.briefActions}><button className="btn btn-primary" onClick={()=>setOsModule(investorIntel.missing[0]?.module ?? "diligence")}>Resolve next issue →</button><button className="btn btn-ghost" onClick={()=>void askConcierge("Create a Property 360 deal brief using the Evidence Ledger. Separate facts, estimates, assumptions, unresolved evidence and next verification steps.")}>✦ AI deal brief</button></div></div>
                 <div className={styles.evidenceLedger}>
                   <div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Evidence ledger</span><h3>What FirstLook knows — and what it does not.</h3></div><span className="pill">{evidenceLedger.openCount} unresolved</span></div>
                   <div className={styles.evidenceRows}>{evidenceLedger.entries.map((entry)=><div className={styles.evidenceRow} key={entry.label}><div><strong>{entry.label}</strong><small>{entry.detail}</small></div><span className={styles.evidenceValue}>{entry.value}</span><em className={entry.open ? styles.evidenceOpen : styles.evidenceKnown}>{entry.status}</em></div>)}</div>
@@ -1035,7 +1034,7 @@ export default function AppPage() {
                 <div className="panel">
                   <h2>{dealStrategy === "flip" ? "Flip outcome" : dealStrategy === "rental" ? "Rental outcome" : "BRRRR outcome"}</h2>
                   <div className={styles.outcomeList}>{dealAnalysis.warnings.length ? <div className={styles.analysisWarnings}>{dealAnalysis.warnings.map(w=><p key={w}>⚠ {w}</p>)}</div> : null}
-                    {dealStrategy === "flip" ? <><p><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></p><p><span>Investor MAO</span><strong>{money(dealAnalysis.mao)}</strong></p><p><span>Total project cost</span><strong>{money(dealAnalysis.totalProjectCost)}</strong></p><p><span>Risk reserves</span><strong>{money(dealAnalysis.riskReserves)}</strong></p><p><span>Target profit ({dealInputs.targetProfitPct}%)</span><strong>{money(dealAnalysis.targetProfit)}</strong></p><p><span>Cash required</span><strong>{money(dealAnalysis.cashNeeded)}</strong></p><p><span>ROI on modeled cash</span><strong>{pct(dealAnalysis.flipRoi)}</strong></p></> : <><p><span>Mortgage</span><strong>{money(dealAnalysis.mortgage)}/mo</strong></p><p><span>Cash flow</span><strong>{money(dealAnalysis.cashFlow)}/mo</strong></p><p><span>NOI</span><strong>{money(dealAnalysis.annualNoi)}/yr</strong></p><p><span>All-in basis for cap rate</span><strong>{money(dealAnalysis.rentalBasis)}</strong></p><p><span>Cap rate</span><strong>{pct(dealAnalysis.capRate)}</strong></p><p><span>Cash-on-cash</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></p><p><span>DSCR</span><strong>{dealAnalysis.dscr > 0 ? dealAnalysis.dscr.toFixed(2) : "—"}</strong></p>{dealStrategy === "brrrr" ? <><p><span>Gross refinance ({dealInputs.refiLtvPct}% LTV)</span><strong>{money(dealAnalysis.refiGross)}</strong></p><p><span>Estimated loan payoff</span><strong>{money(dealAnalysis.remainingLoan)}</strong></p><p><span>Cash back after payoff</span><strong>{money(dealAnalysis.cashBackFromRefi)}</strong></p><p><span>Cash left in deal</span><strong>{money(dealAnalysis.cashLeftIn)}</strong></p></> : null}</>}
+                    {dealStrategy === "flip" ? <><p><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></p><p><span>Investor MAO</span><strong>{money(dealAnalysis.mao)}</strong></p><p><span>Total project cost</span><strong>{money(dealAnalysis.totalProjectCost)}</strong></p><p><span>Risk reserves</span><strong>{money(dealAnalysis.riskReserves)}</strong></p><p><span>Target profit ({dealInputs.targetProfitPct}%)</span><strong>{money(dealAnalysis.targetProfit)}</strong></p><p><span>Cash required</span><strong>{money(dealAnalysis.cashNeeded)}</strong></p><p><span>ROI on modeled cash</span><strong>{pct(dealAnalysis.flipRoi)}</strong></p></> : <><p><span>{dealStrategy === "brrrr" ? "Refinance mortgage" : "Mortgage"}</span><strong>{money(dealAnalysis.mortgage)}/mo</strong></p><p><span>Cash flow</span><strong>{money(dealAnalysis.cashFlow)}/mo</strong></p><p><span>NOI</span><strong>{money(dealAnalysis.annualNoi)}/yr</strong></p><p><span>All-in basis for cap rate</span><strong>{money(dealAnalysis.rentalBasis)}</strong></p><p><span>Cap rate</span><strong>{pct(dealAnalysis.capRate)}</strong></p><p><span>{dealStrategy === "brrrr" ? "Annual return / initial cash" : "Cash-on-cash"}</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></p><p><span>DSCR</span><strong>{dealAnalysis.dscr > 0 ? dealAnalysis.dscr.toFixed(2) : "—"}</strong></p>{dealStrategy === "brrrr" ? <><p><span>Gross refinance ({dealInputs.refiLtvPct}% LTV)</span><strong>{money(dealAnalysis.refiGross)}</strong></p><p><span>Estimated loan payoff</span><strong>{money(dealAnalysis.remainingLoan)}</strong></p><p><span>Cash back after payoff</span><strong>{money(dealAnalysis.cashBackFromRefi)}</strong></p><p><span>Cash left in deal</span><strong>{money(dealAnalysis.cashLeftIn)}</strong></p></> : null}</>}
                   </div>
                   <div className={styles.stressPanel}>
                     <div><span className={styles.eyebrow}>Downside stress</span><strong>{dealStrategy === "flip" ? "ARV −10% · rehab +20%" : "Rent −10% · rate +2 pts"}</strong></div>
@@ -1137,9 +1136,10 @@ export default function AppPage() {
                 <div className="panel">
                   <h2>Debt + coverage</h2>
                   <div className={styles.moduleMetrics}>
-                    <p><span>Loan amount</span><strong>{money(dealAnalysis.loan)}</strong></p>
+                    <p><span>Acquisition loan</span><strong>{money(dealAnalysis.loan)}</strong></p>
+                    {dealStrategy === "brrrr" ? <p><span>Modeled refinance loan</span><strong>{money(dealAnalysis.refiGross)}</strong></p> : null}
                     <p><span>Down payment</span><strong>{money(dealAnalysis.down)}</strong></p>
-                    <p><span>Monthly P&I</span><strong>{money(dealAnalysis.mortgage)}</strong></p>
+                    <p><span>{dealStrategy === "brrrr" ? "Refinance monthly P&I" : "Monthly P&I"}</span><strong>{money(dealAnalysis.mortgage)}</strong></p>
                     <p><span>Loan / working ARV</span><strong>{pct(dealAnalysis.loanToValue)}</strong></p>
                     <p><span>Annual debt service</span><strong>{money(dealAnalysis.annualDebtService)}</strong></p>
                     <p><span>DSCR</span><strong>{dealAnalysis.dscr>0?dealAnalysis.dscr.toFixed(2):"—"}</strong></p>
@@ -1191,7 +1191,7 @@ export default function AppPage() {
                   <div><span>Cry-out exposure</span><strong>{money(investorIntel.totalCryOut)}</strong><small>starting bids across pipeline</small></div>
                 </div>
                 <div className={styles.commandGrid}>
-                  <section className="panel"><div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Selected deal</span><h3>{selected?.cleanAddress}</h3></div><strong className={styles.readiness}>{investorIntel.selectedReadiness}% ready</strong></div>
+                  <section className="panel"><div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Selected deal</span><h3>{selected?.cleanAddress}</h3></div><strong className={styles.readiness}>{investorIntel.missing.length} open actions</strong></div>
                     <div className={styles.dealPulse}><div><span>Deal Truth</span><strong>{selected?.dealTruth?.overall ?? "—"}</strong></div><div><span>Max bid</span><strong>{money(selected?.maxBid)}</strong></div><div><span>Working ARV</span><strong>{money(dealInputs.arv)}</strong></div><div><span>Red flags</span><strong>{selected?.redFlags.length ?? 0}</strong></div></div>
                     <div className={styles.commandActions}><button className="btn btn-primary" onClick={()=>setOsModule("property360")}>Open Property 360</button><button className="btn btn-ghost" onClick={()=>setOsModule("analyzer")}>Run scenarios</button><button className="btn btn-ghost" onClick={()=>setOsModule("diligence")}>Verify deal</button></div>
                   </section>
@@ -1272,13 +1272,13 @@ export default function AppPage() {
               <div className={styles.sidebarGrid}>
                 <div className="field">
                   <label>Min assessed value ($)</label>
-                  <input type="number" min="0" value={buyBox.minAssessedValue}
-                    onChange={(e) => setBuyBox((b) => ({ ...b, minAssessedValue: Math.max(0, Number(e.target.value) || 0) }))} />
+                  <input type="number" min="0" max="100000000" value={buyBox.minAssessedValue}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, minAssessedValue: Math.max(0, Math.min(100_000_000, Number(e.target.value) || 0)) }))} />
                 </div>
                 <div className="field">
                   <label>Max cry-out ($) · 0 = no cap</label>
-                  <input type="number" min="0" value={buyBox.maxCryOutBid}
-                    onChange={(e) => setBuyBox((b) => ({ ...b, maxCryOutBid: Math.max(0, Number(e.target.value) || 0) }))} />
+                  <input type="number" min="0" max="100000000" value={buyBox.maxCryOutBid}
+                    onChange={(e) => setBuyBox((b) => ({ ...b, maxCryOutBid: Math.max(0, Math.min(100_000_000, Number(e.target.value) || 0)) }))} />
                 </div>
                 <div className="field">
                   <label>Min equity spread %</label>
@@ -1322,8 +1322,8 @@ export default function AppPage() {
               <details className={styles.advancedBox}>
                 <summary>Advanced scoring + red-flag controls</summary>
                 <div className={styles.sidebarGrid}>
-                  <div className="field"><label>Low-value flag below ($)</label><input type="number" min="0" value={buyBox.redFlags.lowAssessedValue}
-                    onChange={(e)=>setBuyBox((b)=>({...b,redFlags:{...b.redFlags,lowAssessedValue:Math.max(0,Number(e.target.value)||0)}}))}/></div>
+                  <div className="field"><label>Low-value flag below ($)</label><input type="number" min="0" max="100000000" value={buyBox.redFlags.lowAssessedValue}
+                    onChange={(e)=>setBuyBox((b)=>({...b,redFlags:{...b.redFlags,lowAssessedValue:Math.max(0,Math.min(100_000_000,Number(e.target.value)||0))}}))}/></div>
                   <div className="field"><label>High cry-out/FMV flag %</label><input type="number" min="0" max="100" step="0.1" value={Math.round(buyBox.redFlags.highTaxBurdenRatio*1000)/10}
                     onChange={(e)=>setBuyBox((b)=>({...b,redFlags:{...b.redFlags,highTaxBurdenRatio:Math.max(0,Math.min(1,(Number(e.target.value)||0)/100))}}))}/></div>
                   <div className="field"><label>Long delinquency flag (years)</label><input type="number" min="1" max="50" value={buyBox.redFlags.longDelinquencyYears}
