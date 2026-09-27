@@ -42,7 +42,9 @@ export function collectRedFlags(
   if (equitySpread < buyBox.minEquitySpread) {
     flags.push(`Below minimum equity spread (${(equitySpread * 100).toFixed(0)}% vs ${(buyBox.minEquitySpread * 100).toFixed(0)}%)`);
   }
-  if (delinquencyYears >= buyBox.redFlags.longDelinquencyYears) {
+  if (delinquencyYears <= 0) {
+    flags.push("Tax-year / delinquency history missing — verify source list");
+  } else if (delinquencyYears >= buyBox.redFlags.longDelinquencyYears) {
     flags.push(`Long delinquency (${delinquencyYears} years)`);
   }
   if (/\bLLC\b|\bINC\b|\bINSTITUTE\b|\bASSETS\b|\bINVESTMENTS\b|\bHOMES\b|\bENTERPRISES\b/i.test(property.owner)) {
@@ -98,7 +100,8 @@ export function scoreProperty(args: {
 
   const equityScore = clamp((equitySpread / Math.max(buyBox.targetEquitySpreadMin, 0.01)) * 100);
   const taxScore = clamp(100 - (taxBurdenRatio / buyBox.maxTaxBurdenRatio) * 100);
-  const delinquencyScore = clamp(100 - Math.max(0, delinquencyYears - 2) * 20);
+  const delinquencyScore =
+    delinquencyYears <= 0 ? 40 : clamp(100 - Math.max(0, delinquencyYears - 2) * 20);
 
   let typeScore = 55;
   if (propertyType === "residential") typeScore = buyBox.preferResidential ? 95 : 80;
