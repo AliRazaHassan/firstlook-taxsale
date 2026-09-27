@@ -609,3 +609,9 @@
 .engineerGuard span{color:#52606d}
 .engineerResult{min-height:110px;max-height:300px;overflow:auto;white-space:pre-wrap;padding:.85rem;border:1px solid #d7dde3;border-radius:8px;background:#fff;font-size:.8rem;line-height:1.5}
 @media(max-width:640px){.engineerFab{left:.75rem;bottom:.75rem}.engineerPanel{left:.5rem;right:.5rem;bottom:4.8rem;width:auto}}
+
+.copilotAdmin{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:.6rem;padding:.65rem 1rem;border-top:1px solid #e0e3de;background:#f6f8f9}
+.copilotAdmin span{font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#52606d;white-space:nowrap}
+.copilotAdmin input{min-width:0;width:100%;box-sizing:border-box}
+.aiContextMenu{display:grid;gap:.2rem}
+@media(max-width:640px){.copilotAdmin{grid-template-columns:1fr}.copilotAdmin span{white-space:normal}}
