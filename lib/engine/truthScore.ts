@@ -57,7 +57,7 @@ export function calculateDealTruthScore(property: ScoredProperty): DealTruthScor
     opportunity * 0.3 + valuation * 0.2 + titleLegal * 0.2 + auctionSafety * 0.2 + liquidity * 0.1,
   );
   const confidence: "low" | "medium" =
-    property.geocodeStatus === "matched" && property.tractMedianHomeValue != null ? "medium" : "low";
+    property.geocodeStatus === "matched" && property.tractMedianHomeValue != null && property.assessed_fmv > 0 ? "medium" : "low";
 
   return { overall, opportunity, valuation, titleLegal, auctionSafety, liquidity, confidence, reasons };
 }
