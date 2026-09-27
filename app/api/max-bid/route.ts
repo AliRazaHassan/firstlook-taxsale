@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { z } from "zod";
 import { calculateMaxBid } from "@/lib/engine";
 
@@ -24,6 +25,8 @@ const MaxBidSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, "max-bid", 120, 600000);
+  if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   try {
     const body = MaxBidSchema.parse(await request.json());
     return NextResponse.json(calculateMaxBid(body));
