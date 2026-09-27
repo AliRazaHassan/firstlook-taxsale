@@ -669,6 +669,21 @@ export default function AppPage() {
     bidDefaults,
   }), [osModule, dealStrategy, subjectSqft, manualComps, compAnalysis, rehabItems, rehabTotal, dealInputs, dealAnalysis, checkedItems, diligence, pipelineStage, pipelineNote, buyBox, bidDefaults]);
 
+  const copilotQuickPrompts = useMemo(() => {
+    const promptsByModule: Record<OsModule, string[]> = {
+      taxsale: ["Why this score?", "Explain max bid", "Which deals fail my Buy Box?", "What should I verify next?"],
+      property360: ["Give me the deal brief", "What evidence is weakest?", "What could kill this deal?", "What should I verify next?"],
+      analyzer: ["Audit this scenario", "Explain the MAO", "Which assumption moves profit most?", "Find calculation risks"],
+      comps: ["Audit these comps", "How strong is this ARV?", "Which comp is weakest?", "What comp evidence is missing?"],
+      rehab: ["Audit this rehab budget", "Which scopes are missing?", "Is contingency adequate?", "What needs a contractor quote?"],
+      financing: ["Audit DSCR and LTV", "Explain cash-on-cash", "Stress test interest rate", "Which financing input is weakest?"],
+      diligence: ["What remains unverified?", "Rank diligence risks", "Explain redemption risk", "What should block a bid?"],
+      pipeline: ["Give me next 3 actions", "What is blocking this stage?", "Summarize this deal note", "What should I do before moving stage?"],
+      portfolio: ["What deserves attention first?", "Which deal has weakest evidence?", "Summarize open actions", "Where is capital most exposed?"],
+    };
+    return promptsByModule[osModule];
+  }, [osModule]);
+
   const liveBidPreview = useMemo(() => {
     if (!selected) return null;
     const arv = selected.estimatedMarketMid ?? selected.assessed_fmv;
@@ -948,7 +963,7 @@ export default function AppPage() {
         <section className={styles.osWorkspace}>
           <div className={styles.osHero}>
             <div><span className="pill pill-mint">FirstLook Real Estate OS</span><h1>{osModule === "property360" ? "Property 360" : osModule === "analyzer" ? "AI Deal Analyzer" : ({ comps:"Comps & ARV", rehab:"Rehab Estimator", financing:"Financing Lab", diligence:"Due Diligence", pipeline:"Deal Pipeline", portfolio:"Portfolio" } as Record<string,string>)[osModule]}</h1>
-            <p className="muted">{selected ? <><strong>{selected.cleanAddress}</strong> · APN {selected.parcel_id} · <span className={styles.contextTag}>Selected property</span></> : "Select a property from Tax Sale to start a complete investment analysis."}</p></div>
+            <p className="muted">{selected ? <><strong>{selected.cleanAddress}</strong> · APN {selected.parcel_id} · <span className={styles.contextTag}>Selected property</span>{workspaceLoadedParcel === selected.parcel_id ? <> · <span className={styles.contextTag}>Autosaved workspace</span></> : null}</> : "Select a property from Tax Sale to start a complete investment analysis."}</p></div>
             <button className="btn btn-ghost" onClick={() => setOsModule("taxsale")}>← Tax Sale workspace</button>
           </div>
           {selected && (osModule === "property360" || osModule === "analyzer") ? (
@@ -1697,7 +1712,7 @@ export default function AppPage() {
       {conciergeOpen ? (
         <section className={styles.conciergePanel} aria-label="FirstLook Copilot">
           <div className={styles.conciergeHead}>
-            <div><strong>✦ FirstLook Copilot</strong><div className="muted">{selected ? selected.cleanAddress : "Portfolio assistant"} · investor help + admin diagnostics</div></div>
+            <div><strong>✦ FirstLook Copilot</strong><div className="muted">{selected ? selected.cleanAddress : "Portfolio assistant"} · {osModule === "taxsale" ? "Tax Sale" : osModule} context loaded</div></div>
             <button className="btn btn-ghost" onClick={() => setConciergeOpen(false)}>×</button>
           </div>
           <div className={styles.conciergeMessages} ref={conciergeScrollRef}>
@@ -1710,12 +1725,12 @@ export default function AppPage() {
             {conciergeLoading ? <div className={styles.aiMessage}><small>FirstLook Copilot</small><div>Inspecting current feature, evidence and calculations…</div></div> : null}
           </div>
           <div className={styles.conciergeQuick}>
-            {["Why this score?", "Explain max bid", "Audit this calculation", "Find issues on this screen", "What should I verify next?"].map((q) => (
+            {copilotQuickPrompts.map((q) => (
               <button key={q} className="btn btn-ghost" onClick={() => void askConcierge(q)} disabled={conciergeLoading}>{q}</button>
             ))}
           </div>
           <details className={styles.copilotAdmin}><summary>Developer diagnostics</summary><div><span>Admin repair mode</span><input type="password" autoComplete="off" value={engineerKey} onChange={(e)=>setEngineerKey(e.target.value)} placeholder="Admin key for calculation / UI diagnostics" /></div></details><div className={styles.conciergeInput}>
-            <textarea rows={2} value={conciergeQuestion} onChange={(e) => setConciergeQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askConcierge(); } }} placeholder="Ask about the deal, or say: audit this calculation / find the issue / fix this feature…" />
+            <textarea rows={2} value={conciergeQuestion} onChange={(e) => setConciergeQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askConcierge(); } }} placeholder={`Ask Copilot about ${osModule === "taxsale" ? "this tax-sale list" : "the current "+osModule+" workspace"}…`} />
             <button className="btn btn-primary" onClick={() => void askConcierge()} disabled={conciergeLoading || !conciergeQuestion.trim()}>Ask</button>
           </div>
         </section>
