@@ -65,10 +65,53 @@ type BidDefaults = {
   holdingMonths: number;
   monthlyHolding: number;
   desiredProfitPct: number;
+  closingBuyPct: number;
+  closingSellPct: number;
+  contingencyPct: number;
+  titleLegal: number;
+  survivingLiens: number;
+  evictionPossession: number;
+  auctionFees: number;
+  redemptionCarry: number;
 };
 
-const BUY_BOX_KEY = "firstlook-buy-box-v2";
-const BID_KEY = "firstlook-bid-defaults-v2";
+const BUY_BOX_KEY = "firstlook-buy-box-v3";
+const BID_KEY = "firstlook-bid-defaults-v3";
+
+const DEFAULT_BID_DEFAULTS: BidDefaults = {
+  rehab: 25000,
+  holdingMonths: 4,
+  monthlyHolding: 500,
+  desiredProfitPct: 15,
+  closingBuyPct: 2,
+  closingSellPct: 8,
+  contingencyPct: 10,
+  titleLegal: 0,
+  survivingLiens: 0,
+  evictionPossession: 0,
+  auctionFees: 0,
+  redemptionCarry: 0,
+};
+
+function normalizeBidDefaults(raw?: Partial<BidDefaults>): BidDefaults {
+  const v = { ...DEFAULT_BID_DEFAULTS, ...(raw ?? {}) };
+  const moneyValue = (n: number) => Math.max(0, Math.min(100_000_000, Number(n) || 0));
+  const pctValue = (n: number, max = 100) => Math.max(0, Math.min(max, Number(n) || 0));
+  return {
+    rehab: moneyValue(v.rehab),
+    holdingMonths: Math.max(0, Math.min(120, Math.round(Number(v.holdingMonths) || 0))),
+    monthlyHolding: moneyValue(v.monthlyHolding),
+    desiredProfitPct: pctValue(v.desiredProfitPct),
+    closingBuyPct: pctValue(v.closingBuyPct, 25),
+    closingSellPct: pctValue(v.closingSellPct, 35),
+    contingencyPct: pctValue(v.contingencyPct),
+    titleLegal: moneyValue(v.titleLegal),
+    survivingLiens: moneyValue(v.survivingLiens),
+    evictionPossession: moneyValue(v.evictionPossession),
+    auctionFees: moneyValue(v.auctionFees),
+    redemptionCarry: moneyValue(v.redemptionCarry),
+  };
+}
 
 function cloneDefaultBuyBox(): BuyBox {
   return normalizeBuyBox(DEFAULT_BUY_BOX);
@@ -86,15 +129,12 @@ function loadBuyBox(): BuyBox {
 }
 
 function loadBidDefaults(): BidDefaults {
-  if (typeof window === "undefined") {
-    return { rehab: 25000, holdingMonths: 4, monthlyHolding: 500, desiredProfitPct: 15 };
-  }
+  if (typeof window === "undefined") return normalizeBidDefaults();
   try {
     const raw = localStorage.getItem(BID_KEY);
-    if (!raw) throw new Error("empty");
-    return { rehab: 25000, holdingMonths: 4, monthlyHolding: 500, desiredProfitPct: 15, ...JSON.parse(raw) };
+    return normalizeBidDefaults(raw ? JSON.parse(raw) as Partial<BidDefaults> : undefined);
   } catch {
-    return { rehab: 25000, holdingMonths: 4, monthlyHolding: 500, desiredProfitPct: 15 };
+    return normalizeBidDefaults();
   }
 }
 
@@ -148,15 +188,23 @@ export default function AppPage() {
   buyBoxRef.current = buyBox;
   bidRef.current = bidDefaults;
 
-  const bidPayload = useMemo(
-    () => ({
-      rehab: bidDefaults.rehab,
-      holdingMonths: bidDefaults.holdingMonths,
-      monthlyHolding: bidDefaults.monthlyHolding,
-      desiredProfitPct: bidDefaults.desiredProfitPct / 100,
-    }),
-    [bidDefaults],
-  );
+  const bidPayload = useMemo(() => {
+    const b = normalizeBidDefaults(bidDefaults);
+    return {
+      rehab: b.rehab,
+      holdingMonths: b.holdingMonths,
+      monthlyHolding: b.monthlyHolding,
+      desiredProfitPct: b.desiredProfitPct / 100,
+      closingBuyPct: b.closingBuyPct / 100,
+      closingSellPct: b.closingSellPct / 100,
+      contingencyPct: b.contingencyPct / 100,
+      titleLegal: b.titleLegal,
+      survivingLiens: b.survivingLiens,
+      evictionPossession: b.evictionPossession,
+      auctionFees: b.auctionFees,
+      redemptionCarry: b.redemptionCarry,
+    };
+  }, [bidDefaults]);
 
   const applyResponse = useCallback((json: ResearchResponse, keepParcelId?: string | null) => {
     setData(json);
@@ -170,12 +218,20 @@ export default function AppPage() {
   const applyLocalRescore = useCallback(
     (properties: ScoredProperty[], mode = "rescored") => {
       const box = normalizeBuyBox(buyBoxRef.current);
-      const bid = bidRef.current;
+      const bid = normalizeBidDefaults(bidRef.current);
       const next = rescoreExisting(properties, box, {
         rehab: bid.rehab,
         holdingMonths: bid.holdingMonths,
         monthlyHolding: bid.monthlyHolding,
         desiredProfitPct: bid.desiredProfitPct / 100,
+        closingBuyPct: bid.closingBuyPct / 100,
+        closingSellPct: bid.closingSellPct / 100,
+        contingencyPct: bid.contingencyPct / 100,
+        titleLegal: bid.titleLegal,
+        survivingLiens: bid.survivingLiens,
+        evictionPossession: bid.evictionPossession,
+        auctionFees: bid.auctionFees,
+        redemptionCarry: bid.redemptionCarry,
       });
       const impact = impactStats(next);
       return {
