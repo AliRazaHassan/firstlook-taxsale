@@ -487,3 +487,31 @@
   .conciergeInput { grid-template-columns:1fr; }
   .conciergeInput .btn { width:100%; }
 }
+
+.osNav{display:flex;gap:.4rem;overflow-x:auto;padding:.65rem 1rem;background:#fbfbf8;border-bottom:1px solid #c8d0c4;position:sticky;top:57px;z-index:9;scrollbar-width:thin}
+.osNav button,.strategyTabs button{border:1px solid #d5d9d3;background:#fff;border-radius:999px;padding:.5rem .75rem;white-space:nowrap;cursor:pointer;font-weight:650;color:#4c5750}
+.osNavActive{background:#0a5746!important;color:#fff!important;border-color:#0a5746!important}
+.osWorkspace{padding:1rem;display:grid;gap:1rem;max-width:1440px;margin:0 auto;width:100%;box-sizing:border-box}
+.osHero{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem}
+.osHero h1{font-family:var(--font-display),"Space Grotesk",system-ui,sans-serif;margin:.45rem 0 .2rem;font-size:clamp(1.6rem,3vw,2.4rem);letter-spacing:-.04em}
+.osHero p{margin:0}
+.strategyTabs{display:flex;gap:.45rem}
+.osMetrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.7rem}
+.osMetrics>div{background:#fff;border:1px solid #d5d9d3;border-radius:6px;padding:.9rem;min-width:0;cursor:context-menu}
+.osMetrics span{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:#5c675f;margin-bottom:.25rem}
+.osMetrics strong{font-size:1.15rem;overflow-wrap:anywhere}
+.analyzerGrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(300px,.8fr);gap:1rem}
+.analyzerGrid>.panel,.moduleGrid>.panel{padding:1rem}
+.analyzerGrid h2,.moduleGrid h2{margin-top:0;font-family:var(--font-display),"Space Grotesk",system-ui,sans-serif}
+.inputGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.65rem}
+.inputGrid label{display:grid;gap:.25rem;font-size:.78rem;color:#5c675f;font-weight:650}
+.inputGrid input{width:100%;box-sizing:border-box}
+.outcomeList{display:grid;gap:0;margin-bottom:1rem}
+.outcomeList p{display:flex;justify-content:space-between;gap:1rem;padding:.65rem 0;margin:0;border-bottom:1px solid #e0e3de}
+.outcomeList span{color:#5c675f}
+.moduleGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+.pipelineStages{display:flex;gap:.45rem;flex-wrap:wrap}
+.pipelineStages span{padding:.5rem .65rem;border:1px solid #d5d9d3;border-radius:999px;background:#fff;font-size:.78rem}
+.stageActive{background:#0a5746!important;color:#fff;border-color:#0a5746!important}
+@media(max-width:900px){.osMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}.analyzerGrid,.moduleGrid{grid-template-columns:1fr}.inputGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.osHero{flex-direction:column}.osNav{top:55px}}
+@media(max-width:520px){.inputGrid,.osMetrics{grid-template-columns:1fr}.osWorkspace{padding:.7rem}}

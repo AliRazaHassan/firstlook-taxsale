@@ -41,6 +41,8 @@ type ResearchResponse = {
 type FilterMode = "all" | "look" | "flagged" | "clean" | "headroom" | "overbid";
 type SortMode = "rank" | "score" | "maxBid" | "cryOut" | "spread";
 type SideTab = "research" | "buybox" | "bid" | "watch";
+type OsModule = "taxsale" | "property360" | "analyzer" | "comps" | "rehab" | "financing" | "diligence" | "pipeline" | "portfolio";
+type DealStrategy = "flip" | "rental" | "brrrr";
 type ConciergeMessage = { role: "user" | "assistant"; text: string };
 type AiContextMenu = { x: number; y: number; label: string; value: string } | null;
 
@@ -106,6 +108,9 @@ function isOverbidRisk(p: ScoredProperty): boolean {
 
 export default function AppPage() {
   const [data, setData] = useState<ResearchResponse | null>(null);
+  const [osModule, setOsModule] = useState<OsModule>("taxsale");
+  const [dealStrategy, setDealStrategy] = useState<DealStrategy>("flip");
+  const [dealInputs, setDealInputs] = useState({ purchasePrice: 0, arv: 0, rehab: 25000, monthlyRent: 1600, downPaymentPct: 20, interestRate: 7.5, loanYears: 30, vacancyPct: 5, managementPct: 8, taxesMonthly: 180, insuranceMonthly: 110, otherMonthly: 100 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>("all");
@@ -311,6 +316,34 @@ export default function AppPage() {
       .slice(0, 12)
       .map((p) => p.score);
   }, [data]);
+
+  useEffect(() => {
+    if (!selected) return;
+    setDealInputs((v) => ({ ...v, purchasePrice: selected.cry_out_bid, arv: selected.estimatedMarketMid ?? selected.assessed_fmv, rehab: bidDefaults.rehab }));
+  }, [selected?.parcel_id]);
+
+  const dealAnalysis = useMemo(() => {
+    const d = dealInputs;
+    const down = d.purchasePrice * d.downPaymentPct / 100;
+    const loan = Math.max(0, d.purchasePrice - down);
+    const monthlyRate = d.interestRate / 100 / 12;
+    const payments = Math.max(1, d.loanYears * 12);
+    const mortgage = loan <= 0 ? 0 : monthlyRate === 0 ? loan / payments : loan * monthlyRate * Math.pow(1 + monthlyRate, payments) / (Math.pow(1 + monthlyRate, payments) - 1);
+    const vacancy = d.monthlyRent * d.vacancyPct / 100;
+    const management = d.monthlyRent * d.managementPct / 100;
+    const monthlyExpenses = mortgage + vacancy + management + d.taxesMonthly + d.insuranceMonthly + d.otherMonthly;
+    const cashFlow = d.monthlyRent - monthlyExpenses;
+    const annualNoi = (d.monthlyRent - vacancy - management - d.taxesMonthly - d.insuranceMonthly - d.otherMonthly) * 12;
+    const cashNeeded = down + d.rehab + d.purchasePrice * 0.02;
+    const capRate = d.purchasePrice > 0 ? annualNoi / d.purchasePrice : 0;
+    const cashOnCash = cashNeeded > 0 ? cashFlow * 12 / cashNeeded : 0;
+    const flipSelling = d.arv * 0.06;
+    const flipProfit = d.arv - d.purchasePrice - d.rehab - flipSelling - d.purchasePrice * 0.02;
+    const mao = Math.max(0, d.arv * 0.7 - d.rehab);
+    const refiLoan = d.arv * 0.75;
+    const cashLeftIn = Math.max(0, cashNeeded - refiLoan);
+    return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, cashNeeded, capRate, cashOnCash, flipProfit, mao, refiLoan, cashLeftIn };
+  }, [dealInputs]);
 
   const liveBidPreview = useMemo(() => {
     if (!selected) return null;
@@ -555,7 +588,60 @@ export default function AppPage() {
         </div>
       </header>
 
-      <div className={styles.layout}>
+      <nav className={styles.osNav} aria-label="Real Estate OS modules">
+        {([
+          ["taxsale","Tax Sale"],["property360","Property 360"],["analyzer","Deal Analyzer"],["comps","Comps & ARV"],["rehab","Rehab"],["financing","Financing"],["diligence","Due Diligence"],["pipeline","Pipeline"],["portfolio","Portfolio"],
+        ] as const).map(([key,label]) => (
+          <button key={key} className={osModule === key ? styles.osNavActive : ""} onClick={() => setOsModule(key)}>{label}</button>
+        ))}
+      </nav>
+
+      {osModule !== "taxsale" ? (
+        <section className={styles.osWorkspace}>
+          <div className={styles.osHero}>
+            <div><span className="pill pill-mint">FirstLook Real Estate OS</span><h1>{osModule === "property360" ? "Property 360" : osModule === "analyzer" ? "AI Deal Analyzer" : ({ comps:"Comps & ARV", rehab:"Rehab Estimator", financing:"Financing Lab", diligence:"Due Diligence", pipeline:"Deal Pipeline", portfolio:"Portfolio" } as Record<string,string>)[osModule]}</h1>
+            <p className="muted">{selected ? selected.cleanAddress : "Select a property from Tax Sale to start a complete investment analysis."}</p></div>
+            <button className="btn btn-ghost" onClick={() => setOsModule("taxsale")}>← Tax Sale workspace</button>
+          </div>
+          {selected && (osModule === "property360" || osModule === "analyzer") ? (
+            <>
+              <div className={styles.strategyTabs}>{(["flip","rental","brrrr"] as DealStrategy[]).map(s => <button key={s} className={dealStrategy === s ? styles.osNavActive : ""} onClick={() => setDealStrategy(s)}>{s.toUpperCase()}</button>)}</div>
+              <div className={styles.osMetrics}>
+                <div onContextMenu={(e)=>openAiContext(e,"Purchase price",money(dealInputs.purchasePrice))}><span>Purchase</span><strong>{money(dealInputs.purchasePrice)}</strong></div>
+                <div onContextMenu={(e)=>openAiContext(e,"ARV",money(dealInputs.arv))}><span>ARV</span><strong>{money(dealInputs.arv)}</strong></div>
+                <div onContextMenu={(e)=>openAiContext(e,"Rehab",money(dealInputs.rehab))}><span>Rehab</span><strong>{money(dealInputs.rehab)}</strong></div>
+                {dealStrategy === "flip" ? <><div onContextMenu={(e)=>openAiContext(e,"Flip profit",money(dealAnalysis.flipProfit))}><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></div><div><span>70% MAO</span><strong>{money(dealAnalysis.mao)}</strong></div></> : <><div><span>Cash flow / mo</span><strong>{money(dealAnalysis.cashFlow)}</strong></div><div><span>Cash-on-cash</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></div></>}
+              </div>
+              <div className={styles.analyzerGrid}>
+                <div className="panel">
+                  <h2>Deal assumptions</h2>
+                  <div className={styles.inputGrid}>
+                    {([["purchasePrice","Purchase price"],["arv","ARV"],["rehab","Rehab"],["monthlyRent","Monthly rent"],["downPaymentPct","Down payment %"],["interestRate","Interest rate %"],["loanYears","Loan years"],["vacancyPct","Vacancy %"],["managementPct","Management %"],["taxesMonthly","Taxes / mo"],["insuranceMonthly","Insurance / mo"],["otherMonthly","Other / mo"]] as const).map(([key,label]) => <label key={key}><span>{label}</span><input type="number" step="any" value={dealInputs[key]} onChange={(e)=>setDealInputs(v=>({...v,[key]:Number(e.target.value)||0}))}/></label>)}
+                  </div>
+                </div>
+                <div className="panel">
+                  <h2>{dealStrategy === "flip" ? "Flip outcome" : dealStrategy === "rental" ? "Rental outcome" : "BRRRR outcome"}</h2>
+                  <div className={styles.outcomeList}>
+                    {dealStrategy === "flip" ? <><p><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></p><p><span>Maximum allowable offer</span><strong>{money(dealAnalysis.mao)}</strong></p><p><span>Cash needed</span><strong>{money(dealAnalysis.cashNeeded)}</strong></p></> : <><p><span>Mortgage</span><strong>{money(dealAnalysis.mortgage)}/mo</strong></p><p><span>Cash flow</span><strong>{money(dealAnalysis.cashFlow)}/mo</strong></p><p><span>Cap rate</span><strong>{pct(dealAnalysis.capRate)}</strong></p><p><span>Cash-on-cash</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></p>{dealStrategy === "brrrr" ? <><p><span>75% ARV refinance</span><strong>{money(dealAnalysis.refiLoan)}</strong></p><p><span>Cash left in deal</span><strong>{money(dealAnalysis.cashLeftIn)}</strong></p></> : null}</>}
+                  </div>
+                  <button className="btn btn-primary" onClick={()=>void askConcierge(`Analyze this ${dealStrategy} scenario. Purchase ${money(dealInputs.purchasePrice)}, ARV ${money(dealInputs.arv)}, rehab ${money(dealInputs.rehab)}, rent ${money(dealInputs.monthlyRent)}. Explain strengths, risks, and which assumptions I should verify.`)}>✦ Ask AI to analyze this deal</button>
+                </div>
+              </div>
+            </>
+          ) : selected ? (
+            <div className={styles.moduleGrid}>
+              {osModule === "comps" && <><div className="panel"><h2>Valuation evidence</h2><p>Assessed FMV <strong>{money(selected.assessed_fmv)}</strong></p><p>Estimated market <strong>{money(selected.estimatedMarketMid)}</strong></p><p>Tract median <strong>{money(selected.tractMedianHomeValue)}</strong></p><p className="muted">Property-level sold comps are the next data connector; neighborhood estimates are not treated as verified comps.</p></div><div className="panel"><h2>ARV workspace</h2><p>Working ARV <strong>{money(dealInputs.arv)}</strong></p><button className="btn btn-primary" onClick={()=>setOsModule("analyzer")}>Use in analyzer</button></div></>}
+              {osModule === "rehab" && <div className="panel"><h2>Rehab budget</h2><p>Current working budget <strong>{money(dealInputs.rehab)}</strong></p><input type="number" value={dealInputs.rehab} onChange={e=>setDealInputs(v=>({...v,rehab:Number(e.target.value)||0}))}/><p className="muted">Changes flow directly into Flip / Rental / BRRRR analysis.</p></div>}
+              {osModule === "financing" && <div className="panel"><h2>Financing scenario</h2><p>Loan <strong>{money(dealAnalysis.loan)}</strong></p><p>Down payment <strong>{money(dealAnalysis.down)}</strong></p><p>Payment <strong>{money(dealAnalysis.mortgage)}/mo</strong></p><button className="btn btn-primary" onClick={()=>setOsModule("analyzer")}>Edit financing assumptions</button></div>}
+              {osModule === "diligence" && <div className="panel"><h2>Diligence status</h2><p><strong>{Object.values(checkedItems).filter(Boolean).length}/{diligence?.checklist.length ?? 0}</strong> checks complete</p><p>{diligence?.rules.label}</p><button className="btn btn-primary" onClick={()=>void askConcierge("Review the current diligence checklist and tell me what remains unverified and why it matters.")}>✦ Review with AI</button></div>}
+              {osModule === "pipeline" && <div className="panel"><h2>Deal pipeline</h2><div className={styles.pipelineStages}>{["New","Researching","Due diligence","Offer","Under contract","Rehab","Listed / Rented","Exited"].map((s,i)=><span key={s} className={i===1 ? styles.stageActive : ""}>{s}</span>)}</div><p className="muted">Property CRM persistence and tasks are the next backend step.</p></div>}
+              {osModule === "portfolio" && <div className="panel"><h2>Portfolio command center</h2><p className="muted">Closed/acquired properties will roll into equity, debt, cash-flow and realized-return tracking here.</p><div className={styles.osMetrics}><div><span>Tracked deals</span><strong>{data?.total ?? 0}</strong></div><div><span>Look first</span><strong>{data?.lookFirstCount ?? 0}</strong></div></div></div>}
+            </div>
+          ) : <div className="panel"><h2>No property selected</h2><p className="muted">Open Tax Sale, select a property, then return to this module.</p><button className="btn btn-primary" onClick={()=>setOsModule("taxsale")}>Open Tax Sale</button></div>}
+        </section>
+      ) : null}
+
+      {osModule === "taxsale" ? <div className={styles.layout}>
         <aside className={`panel ${styles.sidebar}`}>
           <div className={styles.tabRow}>
             {(
@@ -1124,7 +1210,7 @@ export default function AppPage() {
             <p className="muted">Select a property to inspect.</p>
           )}
         </aside>
-      </div>
+      </div> : null}
       <button className={styles.conciergeFab} onClick={() => setConciergeOpen((v) => !v)} aria-expanded={conciergeOpen}>
         AI Concierge
       </button>
