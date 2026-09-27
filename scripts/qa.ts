@@ -113,6 +113,13 @@ function run() {
   assert.equal(rescored.find((p) => p.parcel_id === "TOO-HIGH")?.lookAtFirst, false, "cry-out above cap must not be Look First");
   assert.equal(rescored.find((p) => p.parcel_id === "GOOD")?.lookAtFirst, true, "qualified property should be Look First");
 
+  const strictBox = normalizeBuyBox({ maxLookFirst: 5, minLookFirstScore: 0, avoidLlcInvestorOwned: true });
+  const strictRows = rescoreExisting([
+    synthetic({ parcel_id: "ENTITY", owner: "TEST INVESTMENTS LLC", cry_out_bid: 10000 }),
+    synthetic({ parcel_id: "RELATED", property_type_hint: "related", cry_out_bid: 10000 }),
+  ], strictBox);
+  assert.equal(strictRows.some((p) => p.lookAtFirst), false, "Look First must not fill quotas with explicitly excluded risky deal types");
+
   console.log("FirstLook QA: all deterministic regression checks passed.");
 }
 
