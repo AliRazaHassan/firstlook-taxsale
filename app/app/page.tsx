@@ -361,6 +361,24 @@ export default function AppPage() {
     return { down, loan, mortgage, monthlyExpenses, cashFlow, annualNoi, cashNeeded, capRate, cashOnCash, flipProfit, mao, refiGross, refiClosing, refiNet, cashLeftIn, buyClosing, sellClosing, rehabContingency, holding, warnings };
   }, [dealInputs, dealStrategy]);
 
+  const investorIntel = useMemo(() => {
+    const props = data?.properties ?? [];
+    const diligenceTotal = diligence?.checklist.length ?? 0;
+    const diligenceDone = Object.values(checkedItems).filter(Boolean).length;
+    const missing: Array<{label:string; module:OsModule; why:string}> = [];
+    if (dealInputs.monthlyRent <= 0) missing.push({ label: "Add market rent", module: "analyzer", why: "Rental and BRRRR returns cannot be trusted without rent." });
+    if (dealInputs.taxesMonthly <= 0) missing.push({ label: "Verify property taxes", module: "diligence", why: "Taxes materially change NOI and cash flow." });
+    if (dealInputs.insuranceMonthly <= 0) missing.push({ label: "Add insurance quote", module: "analyzer", why: "Insurance is still an assumption." });
+    missing.push({ label: "Verify sold comps / ARV", module: "comps", why: "Current ARV is modeled context, not property-level sold comps." });
+    if (diligenceDone < diligenceTotal) missing.push({ label: `Finish diligence (${diligenceDone}/${diligenceTotal})`, module: "diligence", why: "Unchecked title, lien, occupancy or auction items can change the deal." });
+    const look = props.filter(p=>p.lookAtFirst);
+    const totalModeledValue = props.reduce((s,p)=>s+(p.estimatedMarketMid ?? p.assessed_fmv ?? 0),0);
+    const totalCryOut = props.reduce((s,p)=>s+(p.cry_out_bid ?? 0),0);
+    const flagged = props.filter(p=>p.redFlags.length>0).length;
+    const selectedReadiness = Math.max(0, 100 - Math.min(100, missing.length * 16));
+    return { missing, look, totalModeledValue, totalCryOut, flagged, selectedReadiness };
+  }, [data, diligence, checkedItems, dealInputs.monthlyRent, dealInputs.taxesMonthly, dealInputs.insuranceMonthly]);
+
   const liveBidPreview = useMemo(() => {
     if (!selected) return null;
     const arv = selected.estimatedMarketMid ?? selected.assessed_fmv;
@@ -617,11 +635,12 @@ export default function AppPage() {
         <section className={styles.osWorkspace}>
           <div className={styles.osHero}>
             <div><span className="pill pill-mint">FirstLook Real Estate OS</span><h1>{osModule === "property360" ? "Property 360" : osModule === "analyzer" ? "AI Deal Analyzer" : ({ comps:"Comps & ARV", rehab:"Rehab Estimator", financing:"Financing Lab", diligence:"Due Diligence", pipeline:"Deal Pipeline", portfolio:"Portfolio" } as Record<string,string>)[osModule]}</h1>
-            <p className="muted">{selected ? selected.cleanAddress : "Select a property from Tax Sale to start a complete investment analysis."}</p></div>
+            <p className="muted">{selected ? <><strong>{selected.cleanAddress}</strong> · APN {selected.parcel_id} · <span className={styles.contextTag}>Selected property</span></> : "Select a property from Tax Sale to start a complete investment analysis."}</p></div>
             <button className="btn btn-ghost" onClick={() => setOsModule("taxsale")}>← Tax Sale workspace</button>
           </div>
           {selected && (osModule === "property360" || osModule === "analyzer") ? (
             <>
+              {osModule === "property360" ? <div className={styles.propertyBrief}><div><span className={styles.eyebrow}>Deal intelligence</span><h2>{investorIntel.selectedReadiness >= 70 ? "Analysis is progressing — verify the remaining evidence." : "This deal is not decision-ready yet."}</h2><p>{investorIntel.missing[0]?.why ?? "Core evidence is present. Review diligence before committing capital."}</p></div><div className={styles.briefActions}><button className="btn btn-primary" onClick={()=>setOsModule(investorIntel.missing[0]?.module ?? "diligence")}>Resolve next issue →</button><button className="btn btn-ghost" onClick={()=>void askConcierge("Create a Property 360 deal brief using only known evidence. Separate facts, estimates, assumptions, risks, and next verification steps.")}>✦ AI deal brief</button></div></div> : null}
               <div className={styles.strategyTabs}>{(["flip","rental","brrrr"] as DealStrategy[]).map(s => <button key={s} className={dealStrategy === s ? styles.osNavActive : ""} onClick={() => setDealStrategy(s)}>{s.toUpperCase()}</button>)}</div>
               <div className={styles.osMetrics}>
                 <div onContextMenu={(e)=>openAiContext(e,"Purchase price",money(dealInputs.purchasePrice))}><span>Purchase</span><strong>{money(dealInputs.purchasePrice)}</strong></div>
@@ -652,7 +671,31 @@ export default function AppPage() {
               {osModule === "financing" && <div className="panel"><h2>Financing scenario</h2><p>Loan <strong>{money(dealAnalysis.loan)}</strong></p><p>Down payment <strong>{money(dealAnalysis.down)}</strong></p><p>Payment <strong>{money(dealAnalysis.mortgage)}/mo</strong></p><button className="btn btn-primary" onClick={()=>setOsModule("analyzer")}>Edit financing assumptions</button></div>}
               {osModule === "diligence" && <div className="panel"><h2>Diligence status</h2><p><strong>{Object.values(checkedItems).filter(Boolean).length}/{diligence?.checklist.length ?? 0}</strong> checks complete</p><p>{diligence?.rules.label}</p><button className="btn btn-primary" onClick={()=>void askConcierge("Review the current diligence checklist and tell me what remains unverified and why it matters.")}>✦ Review with AI</button></div>}
               {osModule === "pipeline" && <div className="panel"><h2>Deal pipeline</h2><div className={styles.pipelineStages}>{["New","Researching","Due diligence","Offer","Under contract","Rehab","Listed / Rented","Exited"].map((s,i)=><span key={s} className={i===1 ? styles.stageActive : ""}>{s}</span>)}</div><p className="muted">Property CRM persistence and tasks are the next backend step.</p></div>}
-              {osModule === "portfolio" && <div className="panel"><h2>Portfolio command center</h2><p className="muted">Closed/acquired properties will roll into equity, debt, cash-flow and realized-return tracking here.</p><div className={styles.osMetrics}><div><span>Tracked deals</span><strong>{data?.total ?? 0}</strong></div><div><span>Look first</span><strong>{data?.lookFirstCount ?? 0}</strong></div></div></div>}
+              {osModule === "portfolio" && <div className={styles.commandCenter}>
+                <div className={styles.commandHero}>
+                  <div><span className="pill pill-mint">Investor Command Center</span><h2>Know what deserves attention now.</h2><p className="muted">Research pipeline intelligence — not acquired-asset accounting. Portfolio ownership metrics activate when persistent acquired assets are connected.</p></div>
+                  <button className="btn btn-primary" onClick={()=>void askConcierge("Give me a concise command-center brief: what deserves attention first, what evidence is missing, and what should I verify next?")}>✦ Generate investor brief</button>
+                </div>
+                <div className={styles.commandMetrics}>
+                  <div><span>Research pipeline</span><strong>{data?.total ?? 0}</strong><small>candidate properties</small></div>
+                  <div><span>Look first</span><strong>{data?.lookFirstCount ?? 0}</strong><small>prioritized by current buy box</small></div>
+                  <div><span>Flagged</span><strong>{investorIntel.flagged}</strong><small>need closer review</small></div>
+                  <div><span>Modeled value</span><strong>{money(investorIntel.totalModeledValue)}</strong><small>estimate, not owned equity</small></div>
+                  <div><span>Cry-out exposure</span><strong>{money(investorIntel.totalCryOut)}</strong><small>starting bids across pipeline</small></div>
+                </div>
+                <div className={styles.commandGrid}>
+                  <section className="panel"><div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Selected deal</span><h3>{selected?.cleanAddress}</h3></div><strong className={styles.readiness}>{investorIntel.selectedReadiness}% ready</strong></div>
+                    <div className={styles.dealPulse}><div><span>Deal Truth</span><strong>{selected?.dealTruth?.overall ?? "—"}</strong></div><div><span>Max bid</span><strong>{money(selected?.maxBid)}</strong></div><div><span>Working ARV</span><strong>{money(dealInputs.arv)}</strong></div><div><span>Red flags</span><strong>{selected?.redFlags.length ?? 0}</strong></div></div>
+                    <div className={styles.commandActions}><button className="btn btn-primary" onClick={()=>setOsModule("property360")}>Open Property 360</button><button className="btn btn-ghost" onClick={()=>setOsModule("analyzer")}>Run scenarios</button><button className="btn btn-ghost" onClick={()=>setOsModule("diligence")}>Verify deal</button></div>
+                  </section>
+                  <section className="panel"><div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Action center</span><h3>What needs attention</h3></div><span className="pill">{investorIntel.missing.length} open</span></div>
+                    <div className={styles.actionList}>{investorIntel.missing.slice(0,5).map(item=><button key={item.label} onClick={()=>setOsModule(item.module)}><span><strong>{item.label}</strong><small>{item.why}</small></span><b>→</b></button>)}</div>
+                  </section>
+                  <section className={"panel "+styles.spanTwo}><div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Opportunity queue</span><h3>Deals to review first</h3></div><button className="btn btn-ghost" onClick={()=>setOsModule("taxsale")}>View all</button></div>
+                    <div className={styles.dealQueue}>{investorIntel.look.slice(0,5).map(p=><button key={p.parcel_id} onClick={()=>{setSelected(p);setOsModule("property360")}}><span className={styles.queueRank}>#{p.rank}</span><span className={styles.queueAddress}><strong>{p.cleanAddress}</strong><small>{p.propertyType} · {p.redFlags.length} flags</small></span><span><small>Truth</small><strong>{p.dealTruth?.overall ?? "—"}</strong></span><span><small>Max bid</small><strong>{money(p.maxBid)}</strong></span><b>→</b></button>)}</div>
+                  </section>
+                </div>
+              </div>}
             </div>
           ) : <div className="panel"><h2>No property selected</h2><p className="muted">Open Tax Sale, select a property, then return to this module.</p><button className="btn btn-primary" onClick={()=>setOsModule("taxsale")}>Open Tax Sale</button></div>}
         </section>
