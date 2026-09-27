@@ -640,6 +640,7 @@ export default function AppPage() {
           </div>
           {selected && (osModule === "property360" || osModule === "analyzer") ? (
             <>
+              {osModule === "property360" ? <div className={styles.propertyBrief}><div><span className={styles.eyebrow}>Deal intelligence</span><h2>{investorIntel.selectedReadiness >= 70 ? "Analysis is progressing — verify the remaining evidence." : "This deal is not decision-ready yet."}</h2><p>{investorIntel.missing[0]?.why ?? "Core evidence is present. Review diligence before committing capital."}</p></div><div className={styles.briefActions}><button className="btn btn-primary" onClick={()=>setOsModule(investorIntel.missing[0]?.module ?? "diligence")}>Resolve next issue →</button><button className="btn btn-ghost" onClick={()=>void askConcierge("Create a Property 360 deal brief using only known evidence. Separate facts, estimates, assumptions, risks, and next verification steps.")}>✦ AI deal brief</button></div></div> : null}
               <div className={styles.strategyTabs}>{(["flip","rental","brrrr"] as DealStrategy[]).map(s => <button key={s} className={dealStrategy === s ? styles.osNavActive : ""} onClick={() => setDealStrategy(s)}>{s.toUpperCase()}</button>)}</div>
               <div className={styles.osMetrics}>
                 <div onContextMenu={(e)=>openAiContext(e,"Purchase price",money(dealInputs.purchasePrice))}><span>Purchase</span><strong>{money(dealInputs.purchasePrice)}</strong></div>
