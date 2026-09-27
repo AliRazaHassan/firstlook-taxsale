@@ -548,28 +548,31 @@ export default function AppPage() {
     setAiContextMenu({ x: Math.min(e.clientX, window.innerWidth - 230), y: Math.min(e.clientY, window.innerHeight - 100), label, value });
   }
 
-  async function askConcierge(question = conciergeQuestion) {
+  async function askConcierge(question = conciergeQuestion, forceEngineer = false) {
     if (!question.trim()) return;
+    const engineerIntent = forceEngineer || /\b(fix|bug|wrong|incorrect|issue|broken|calculate|calculation|formula|algorithm|ui|overflow|cutting|audit)\b/i.test(question);
+    const useEngineer = engineerIntent && !!engineerKey.trim();
     setConciergeOpen(true);
     setAiContextMenu(null);
     setConciergeMessages((m) => [...m, { role: "user", text: question }]);
     setConciergeQuestion("");
     setConciergeLoading(true);
     try {
-      const res = await fetch("/api/concierge", {
+      const res = await fetch(useEngineer ? "/api/admin/engineer" : "/api/concierge", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question,
-          property: selected ?? undefined,
-          diligence,
+        headers: useEngineer ? { "Content-Type": "application/json", "x-firstlook-admin-key": engineerKey } : { "Content-Type": "application/json" },
+        body: JSON.stringify(useEngineer ? {
+          request: question, module: osModule, strategy: dealStrategy, inputs: dealInputs, results: dealAnalysis, property: selected ?? undefined
+        } : {
+          question, property: selected ?? undefined, diligence,
           analysis: { module: osModule, strategy: dealStrategy, inputs: dealInputs, results: dealAnalysis },
           portfolio: { total: data?.total, lookFirstCount: data?.lookFirstCount },
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Concierge failed");
-      setConciergeMessages((m) => [...m, { role: "assistant", text: json.answer }]);
+      const engineerChecks = useEngineer && Array.isArray(json.deterministicFindings) && json.deterministicFindings.length ? "\n\nChecks:\n- " + json.deterministicFindings.join("\n- ") : "";
+      setConciergeMessages((m) => [...m, { role: "assistant", text: useEngineer ? ("⚙ Engineer mode\n\n" + (json.analysis ?? "Diagnosis complete.") + engineerChecks + "\n\nI will not silently deploy a code change; use the approved fix workflow for source changes.") : json.answer }]);
     } catch (err) {
       setConciergeMessages((m) => [...m, { role: "assistant", text: err instanceof Error ? err.message : "Concierge is unavailable." }]);
     } finally {
@@ -1289,49 +1292,37 @@ export default function AppPage() {
           )}
         </aside>
       </div> : null}
-      <button className={styles.engineerFab} onClick={()=>setEngineerOpen(v=>!v)}>⚙ AI Engineer</button>
-      {engineerOpen ? <aside className={styles.engineerPanel}>
-        <div className={styles.conciergeHead}><div><strong>FirstLook AI Engineer</strong><p className="muted">Admin diagnostic mode · calculations & UI</p></div><button className="btn btn-ghost" onClick={()=>setEngineerOpen(false)}>×</button></div>
-        <div className={styles.engineerBody}>
-          <div className={styles.engineerGuard}><strong>Controlled mode</strong><span>Diagnoses and proposes fixes. Production code is never changed silently.</span></div>
-          <label><span>Admin key</span><input type="password" autoComplete="off" value={engineerKey} onChange={e=>setEngineerKey(e.target.value)} placeholder="FIRSTLOOK_ADMIN_KEY"/></label>
-          <label><span>What looks wrong?</span><textarea rows={5} value={engineerRequest} onChange={e=>setEngineerRequest(e.target.value)} placeholder="Example: Flip profit looks too high. Recalculate every component, find the wrong formula or assumption, and tell me exactly what to fix."/></label>
-          <button className="btn btn-primary" disabled={engineerLoading || !engineerKey || !engineerRequest.trim()} onClick={()=>void runEngineerAudit()}>{engineerLoading ? "Analyzing formulas…" : "Analyze current screen"}</button>
-          <div className={styles.engineerResult}>{engineerResult || "The engineer receives the current module, strategy, property, all deal inputs and calculated outputs. It independently checks the math before blaming the algorithm."}</div>
-        </div>
-      </aside> : null}
       <button className={styles.conciergeFab} onClick={() => setConciergeOpen((v) => !v)} aria-expanded={conciergeOpen}>
-        AI Concierge
+        ✦ FirstLook Copilot
       </button>
       {aiContextMenu ? (
         <div className={styles.aiContextMenu} style={{ left: aiContextMenu.x, top: aiContextMenu.y }} onClick={(e) => e.stopPropagation()}>
-          <button onClick={() => void askConcierge(`Explain this metric in context: ${aiContextMenu.label} = ${aiContextMenu.value}. Why does it matter for this deal?`)}>
-            ✦ Ask AI about this
-          </button>
+          <button onClick={() => void askConcierge(`Explain this metric in context: ${aiContextMenu.label} = ${aiContextMenu.value}. Why does it matter for this deal?`)}>✦ Ask Copilot</button>
+          <button onClick={() => void askConcierge(`Audit this calculation/metric for a possible bug: ${aiContextMenu.label} = ${aiContextMenu.value}. Recompute it and identify whether the algorithm or assumptions are wrong.`, true)}>⚙ Audit / diagnose</button>
         </div>
       ) : null}
       {conciergeOpen ? (
-        <section className={styles.conciergePanel} aria-label="FirstLook AI Concierge">
+        <section className={styles.conciergePanel} aria-label="FirstLook Copilot">
           <div className={styles.conciergeHead}>
-            <div><strong>✦ FirstLook AI Concierge</strong><div className="muted">{selected ? selected.cleanAddress : "Portfolio assistant"} · grounded in current results</div></div>
+            <div><strong>✦ FirstLook Copilot</strong><div className="muted">{selected ? selected.cleanAddress : "Portfolio assistant"} · investor help + admin diagnostics</div></div>
             <button className="btn btn-ghost" onClick={() => setConciergeOpen(false)}>×</button>
           </div>
           <div className={styles.conciergeMessages} ref={conciergeScrollRef}>
             {conciergeMessages.map((m, i) => (
               <div key={i} className={m.role === "user" ? styles.userMessage : styles.aiMessage}>
-                <small>{m.role === "user" ? "You" : "AI Concierge"}</small>
+                <small>{m.role === "user" ? "You" : "FirstLook Copilot"}</small>
                 <div>{m.text}</div>
               </div>
             ))}
-            {conciergeLoading ? <div className={styles.aiMessage}><small>AI Concierge</small><div>Reviewing the evidence…</div></div> : null}
+            {conciergeLoading ? <div className={styles.aiMessage}><small>FirstLook Copilot</small><div>Inspecting current feature, evidence and calculations…</div></div> : null}
           </div>
           <div className={styles.conciergeQuick}>
-            {["Why this score?", "Explain max bid", "What are the risks?", "What should I verify next?"].map((q) => (
+            {["Why this score?", "Explain max bid", "Audit this calculation", "Find issues on this screen", "What should I verify next?"].map((q) => (
               <button key={q} className="btn btn-ghost" onClick={() => void askConcierge(q)} disabled={conciergeLoading}>{q}</button>
             ))}
           </div>
-          <div className={styles.conciergeInput}>
-            <textarea rows={2} value={conciergeQuestion} onChange={(e) => setConciergeQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askConcierge(); } }} placeholder="Ask anything about these results…" />
+          <div className={styles.copilotAdmin}><span>Admin repair mode</span><input type="password" autoComplete="off" value={engineerKey} onChange={(e)=>setEngineerKey(e.target.value)} placeholder="Admin key (only needed to diagnose/fix app issues)" /></div><div className={styles.conciergeInput}>
+            <textarea rows={2} value={conciergeQuestion} onChange={(e) => setConciergeQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void askConcierge(); } }} placeholder="Ask about the deal, or say: audit this calculation / find the issue / fix this feature…" />
             <button className="btn btn-primary" onClick={() => void askConcierge()} disabled={conciergeLoading || !conciergeQuestion.trim()}>Ask</button>
           </div>
         </section>
