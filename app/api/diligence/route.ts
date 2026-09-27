@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import {
   buildDiligenceChecklist,
   overbidRisk,
@@ -10,6 +11,8 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, "diligence", 120, 600000);
+  if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   try {
     const body = (await request.json()) as { property?: ScoredProperty };
     if (!body.property) {

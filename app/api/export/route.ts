@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { CSV_TEMPLATE, propertiesToBidSheet, propertiesToCsv } from "@/lib/engine";
 import type { ScoredProperty } from "@/lib/engine";
 
@@ -12,6 +13,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, "export", 60, 600000);
+  if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   try {
     const body = (await request.json()) as { properties?: ScoredProperty[]; format?: "full" | "bid-sheet" };
     if (!body.properties?.length) return NextResponse.json({ error: "No properties to export" }, { status: 400 });

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createHash, timingSafeEqual } from "crypto";
+import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -41,12 +42,19 @@ function deterministicAudit(body: z.infer<typeof Body>) {
     const sellClosing = n("arv") * pct("sellClosingPct");
     const contingency = n("rehab") * pct("contingencyPct");
     const holding = Math.max(0,n("holdingMonths")) * Math.max(0,n("monthlyHolding"));
-    const expectedFlip = n("arv") - n("purchasePrice") - buyClosing - n("rehab") - contingency - holding - sellClosing;
+    const riskReserves =
+      Math.max(0,n("titleLegal")) +
+      Math.max(0,n("survivingLiens")) +
+      Math.max(0,n("evictionPossession")) +
+      Math.max(0,n("auctionFees")) +
+      Math.max(0,n("redemptionCarry"));
+    const expectedFlip = n("arv") - n("purchasePrice") - buyClosing - n("rehab") - contingency - holding - sellClosing - riskReserves;
     if (Number.isFinite(rn("flipProfit")) && Math.abs(rn("flipProfit") - expectedFlip) > 2) {
       findings.push(`Flip profit mismatch: UI ${rn("flipProfit").toFixed(2)} vs deterministic ${expectedFlip.toFixed(2)}.`);
     }
-    const targetProfit = n("arv") * 0.15;
-    const expectedMao = Math.max(0,(n("arv") - sellClosing - n("rehab") - contingency - holding - targetProfit) / (1 + pct("buyClosingPct")));
+    const targetProfitPct = Math.max(0, Math.min(100, Number(i.targetProfitPct ?? 15))) / 100;
+    const targetProfit = n("arv") * targetProfitPct;
+    const expectedMao = Math.max(0,(n("arv") - sellClosing - n("rehab") - contingency - holding - targetProfit - riskReserves) / (1 + pct("buyClosingPct")));
     if (Number.isFinite(rn("mao")) && Math.abs(rn("mao") - expectedMao) > 2) {
       findings.push(`MAO mismatch: UI ${rn("mao").toFixed(2)} vs deterministic ${expectedMao.toFixed(2)}.`);
     }
@@ -67,6 +75,8 @@ function providerReason(status:number) {
 }
 
 export async function POST(request: Request) {
+  const rate = checkRateLimit(request, "engineer", 20, 600000);
+  if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
   if (!authorized(request)) return NextResponse.json({ error: "Admin authorization required." }, { status: 401 });
 
   try {
