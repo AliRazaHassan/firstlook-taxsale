@@ -136,6 +136,11 @@ export default function AppPage() {
   ]);
   const [conciergeLoading, setConciergeLoading] = useState(false);
   const [aiContextMenu, setAiContextMenu] = useState<AiContextMenu>(null);
+  const [engineerOpen, setEngineerOpen] = useState(false);
+  const [engineerKey, setEngineerKey] = useState("");
+  const [engineerRequest, setEngineerRequest] = useState("");
+  const [engineerResult, setEngineerResult] = useState("");
+  const [engineerLoading, setEngineerLoading] = useState(false);
   const conciergeScrollRef = useRef<HTMLDivElement | null>(null);
 
   const buyBoxRef = useRef(buyBox);
@@ -570,6 +575,19 @@ export default function AppPage() {
     } finally {
       setConciergeLoading(false);
     }
+  }
+
+  async function runEngineerAudit() {
+    if (!engineerRequest.trim() || !engineerKey.trim()) return;
+    setEngineerLoading(true); setEngineerResult("");
+    try {
+      const res = await fetch("/api/admin/engineer", { method:"POST", headers:{"Content-Type":"application/json","x-firstlook-admin-key":engineerKey}, body:JSON.stringify({request:engineerRequest,module:osModule,strategy:dealStrategy,inputs:dealInputs,results:dealAnalysis,property:selected ?? undefined}) });
+      const json = await res.json();
+      if(!res.ok) throw new Error(json.error ?? "Engineer audit failed");
+      const checks = Array.isArray(json.deterministicFindings) && json.deterministicFindings.length ? "\n\nDeterministic checks:\n- "+json.deterministicFindings.join("\n- ") : "\n\nDeterministic checks: no obvious invariant violation.";
+      setEngineerResult((json.analysis ?? "Diagnosis complete.") + checks);
+    } catch(err){ setEngineerResult(err instanceof Error ? err.message : "Engineer audit failed"); }
+    finally{ setEngineerLoading(false); }
   }
 
   useEffect(() => {
@@ -1271,6 +1289,17 @@ export default function AppPage() {
           )}
         </aside>
       </div> : null}
+      <button className={styles.engineerFab} onClick={()=>setEngineerOpen(v=>!v)}>⚙ AI Engineer</button>
+      {engineerOpen ? <aside className={styles.engineerPanel}>
+        <div className={styles.conciergeHead}><div><strong>FirstLook AI Engineer</strong><p className="muted">Admin diagnostic mode · calculations & UI</p></div><button className="btn btn-ghost" onClick={()=>setEngineerOpen(false)}>×</button></div>
+        <div className={styles.engineerBody}>
+          <div className={styles.engineerGuard}><strong>Controlled mode</strong><span>Diagnoses and proposes fixes. Production code is never changed silently.</span></div>
+          <label><span>Admin key</span><input type="password" autoComplete="off" value={engineerKey} onChange={e=>setEngineerKey(e.target.value)} placeholder="FIRSTLOOK_ADMIN_KEY"/></label>
+          <label><span>What looks wrong?</span><textarea rows={5} value={engineerRequest} onChange={e=>setEngineerRequest(e.target.value)} placeholder="Example: Flip profit looks too high. Recalculate every component, find the wrong formula or assumption, and tell me exactly what to fix."/></label>
+          <button className="btn btn-primary" disabled={engineerLoading || !engineerKey || !engineerRequest.trim()} onClick={()=>void runEngineerAudit()}>{engineerLoading ? "Analyzing formulas…" : "Analyze current screen"}</button>
+          <div className={styles.engineerResult}>{engineerResult || "The engineer receives the current module, strategy, property, all deal inputs and calculated outputs. It independently checks the math before blaming the algorithm."}</div>
+        </div>
+      </aside> : null}
       <button className={styles.conciergeFab} onClick={() => setConciergeOpen((v) => !v)} aria-expanded={conciergeOpen}>
         AI Concierge
       </button>
