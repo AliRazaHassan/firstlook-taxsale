@@ -651,9 +651,35 @@ export default function AppPage() {
     return { missing, look, totalModeledValue, totalCryOut, flagged, selectedReadiness };
   }, [data, diligence, checkedItems, dealStrategy, dealInputs.monthlyRent, dealInputs.taxesMonthly, dealInputs.insuranceMonthly]);
 
+  const evidenceLedger = useMemo(() => {
+    if (!selected) return { entries: [] as Array<{ label:string; value:string; status:string; detail:string; open:boolean }>, openCount: 0 };
+    const diligenceTotal = diligence?.checklist.length ?? 0;
+    const diligenceDone = Object.values(checkedItems).filter(Boolean).length;
+    const rulesLoaded = Boolean(diligence?.rules.label) && !/rules not loaded/i.test(diligence?.rules.label ?? "");
+    const entries: Array<{ label:string; value:string; status:string; detail:string; open:boolean }> = [
+      { label: "Parcel / APN", value: selected.parcel_id, status: "Imported fact", detail: "From the uploaded/public sale-list record.", open: false },
+      { label: "Cry-out bid", value: money(selected.cry_out_bid), status: "Imported fact", detail: "Auction-list value; re-check day-of sale status.", open: false },
+      { label: "Assessed FMV", value: money(selected.assessed_fmv), status: selected.assessed_fmv > 0 ? "Public-record input" : "Missing", detail: selected.assessed_fmv > 0 ? "Assessment context, not a sold comp." : "No assessed value was supplied.", open: selected.assessed_fmv <= 0 },
+      { label: "Address / geocode", value: selected.matchedAddress ?? selected.cleanAddress, status: selected.geocodeStatus === "matched" ? "Public-data match" : "Unmatched", detail: selected.geocodeStatus === "matched" ? "Census geocoder matched the address." : "Location match needs manual verification.", open: selected.geocodeStatus !== "matched" },
+      { label: "Neighborhood context", value: money(selected.tractMedianHomeValue), status: selected.tractMedianHomeValue ? "Public-data context" : "Missing", detail: "ACS tract median is neighborhood context, not property-level valuation.", open: !selected.tractMedianHomeValue },
+      { label: "Manual sold comps", value: `${compAnalysis.valid.length} valid`, status: compAnalysis.confidence === "medium" ? "User-supplied evidence" : "Weak / incomplete", detail: compAnalysis.qualityWarnings[0] ?? "Basic comp quality checks pass; source verification is still required.", open: compAnalysis.confidence !== "medium" },
+      { label: "Working ARV", value: money(dealInputs.arv), status: "Estimate", detail: compAnalysis.suggestedArv > 0 && dealInputs.arv === compAnalysis.suggestedArv ? "Derived from the current manual comp workspace." : "Current working estimate; not a certified appraisal.", open: true },
+      { label: "Rehab budget", value: money(dealInputs.rehab), status: rehabTotal > 0 ? "User assumption" : "Missing", detail: rehabTotal > 0 ? `Itemized workspace total ${money(rehabTotal)} before analyzer contingency.` : "No itemized rehab evidence yet.", open: true },
+      ...(dealStrategy !== "flip" ? [
+        { label: "Market rent", value: money(dealInputs.monthlyRent), status: dealInputs.monthlyRent > 0 ? "User assumption" : "Missing", detail: "Verify with current rental comps / lease evidence.", open: true },
+        { label: "Property taxes", value: money(dealInputs.taxesMonthly) + "/mo", status: dealInputs.taxesMonthly > 0 ? "User assumption" : "Missing", detail: "Verify post-sale tax basis and current bill.", open: true },
+        { label: "Insurance", value: money(dealInputs.insuranceMonthly) + "/mo", status: dealInputs.insuranceMonthly > 0 ? "User assumption" : "Missing", detail: "Verify with an insurable quote for the intended use.", open: true },
+      ] : []),
+      { label: "Jurisdiction rules", value: diligence?.rules.label ?? "Loading…", status: rulesLoaded ? "Reference pack" : "Unverified", detail: rulesLoaded ? "Informational rule pack; confirm the current official auction notice." : "No jurisdiction-specific rules pack is loaded.", open: true },
+      { label: "Diligence checklist", value: `${diligenceDone}/${diligenceTotal} marked complete`, status: diligenceTotal > 0 && diligenceDone === diligenceTotal ? "User-marked complete" : "Open", detail: "Checklist marks are user workflow state, not independent FirstLook verification.", open: diligenceTotal === 0 || diligenceDone < diligenceTotal },
+    ];
+    return { entries, openCount: entries.filter((entry) => entry.open).length };
+  }, [selected, diligence, checkedItems, compAnalysis, dealInputs, rehabTotal, dealStrategy]);
+
   const copilotModuleContext = useMemo(() => ({
     activeModule: osModule,
     strategy: dealStrategy,
+    evidenceLedger,
     comps: {
       subjectSqft,
       manualComps,
@@ -703,7 +729,7 @@ export default function AppPage() {
       maxCryOutBid: buyBox.maxCryOutBid,
     },
     bidDefaults,
-  }), [osModule, dealStrategy, subjectSqft, manualComps, compAnalysis, rehabItems, rehabTotal, dealInputs, dealAnalysis, checkedItems, diligence, pipelineStage, pipelineNote, buyBox, bidDefaults]);
+  }), [osModule, dealStrategy, evidenceLedger, subjectSqft, manualComps, compAnalysis, rehabItems, rehabTotal, dealInputs, dealAnalysis, checkedItems, diligence, pipelineStage, pipelineNote, buyBox, bidDefaults]);
 
   const copilotQuickPrompts = useMemo(() => {
     const promptsByModule: Record<OsModule, string[]> = {
@@ -1004,7 +1030,14 @@ export default function AppPage() {
           </div>
           {selected && (osModule === "property360" || osModule === "analyzer") ? (
             <>
-              {osModule === "property360" ? <div className={styles.propertyBrief}><div><span className={styles.eyebrow}>Deal intelligence</span><h2>{investorIntel.selectedReadiness >= 70 ? "Analysis is progressing — verify the remaining evidence." : "This deal is not decision-ready yet."}</h2><p>{investorIntel.missing[0]?.why ?? "Core evidence is present. Review diligence before committing capital."}</p></div><div className={styles.briefActions}><button className="btn btn-primary" onClick={()=>setOsModule(investorIntel.missing[0]?.module ?? "diligence")}>Resolve next issue →</button><button className="btn btn-ghost" onClick={()=>void askConcierge("Create a Property 360 deal brief using only known evidence. Separate facts, estimates, assumptions, risks, and next verification steps.")}>✦ AI deal brief</button></div></div> : null}
+              {osModule === "property360" ? <>
+                <div className={styles.propertyBrief}><div><span className={styles.eyebrow}>Deal intelligence</span><h2>{investorIntel.selectedReadiness >= 70 ? "Analysis is progressing — verify the remaining evidence." : "This deal is not decision-ready yet."}</h2><p>{investorIntel.missing[0]?.why ?? "Core evidence is present. Review diligence before committing capital."}</p></div><div className={styles.briefActions}><button className="btn btn-primary" onClick={()=>setOsModule(investorIntel.missing[0]?.module ?? "diligence")}>Resolve next issue →</button><button className="btn btn-ghost" onClick={()=>void askConcierge("Create a Property 360 deal brief using the Evidence Ledger. Separate facts, estimates, assumptions, unresolved evidence and next verification steps.")}>✦ AI deal brief</button></div></div>
+                <div className={styles.evidenceLedger}>
+                  <div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Evidence ledger</span><h3>What FirstLook knows — and what it does not.</h3></div><span className="pill">{evidenceLedger.openCount} unresolved</span></div>
+                  <div className={styles.evidenceRows}>{evidenceLedger.entries.map((entry)=><div className={styles.evidenceRow} key={entry.label}><div><strong>{entry.label}</strong><small>{entry.detail}</small></div><span className={styles.evidenceValue}>{entry.value}</span><em className={entry.open ? styles.evidenceOpen : styles.evidenceKnown}>{entry.status}</em></div>)}</div>
+                  <p className="muted">“Imported” and “public-data” describe provenance, not title/legal verification. Estimates and user-entered assumptions remain unresolved until supported by appropriate evidence.</p>
+                </div>
+              </> : null}
               <div className={styles.strategyTabs}>{(["flip","rental","brrrr"] as DealStrategy[]).map(s => <button key={s} className={dealStrategy === s ? styles.osNavActive : ""} onClick={() => setDealStrategy(s)}>{s.toUpperCase()}</button>)}</div>
               <div className={styles.osMetrics}>
                 <div onContextMenu={(e)=>openAiContext(e,"Purchase price",money(dealInputs.purchasePrice))}><span>Purchase</span><strong>{money(dealInputs.purchasePrice)}</strong></div>
