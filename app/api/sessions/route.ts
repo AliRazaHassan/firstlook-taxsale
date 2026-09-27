@@ -1,10 +1,19 @@
-import { randomUUID } from "crypto";
+import { createHash, randomUUID, timingSafeEqual } from "crypto";
 import { checkRateLimit, rateLimitResponse } from "@/lib/rateLimit";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { databaseConfigured, ensureSchema, getDb } from "@/lib/db";
 
 export const runtime = "nodejs";
+function authorized(request: Request) {
+  const expected = process.env.FIRSTLOOK_ADMIN_KEY;
+  if (!expected) return false;
+  const supplied = request.headers.get("x-firstlook-admin-key") ?? "";
+  const a = createHash("sha256").update(expected).digest();
+  const b = createHash("sha256").update(supplied).digest();
+  return timingSafeEqual(a, b);
+}
+
 const SaveSchema = z.object({
   email: z.string().trim().email().max(254).optional(),
   label: z.string().trim().min(1).max(100).default("Research session"),
@@ -14,6 +23,7 @@ const SaveSchema = z.object({
 export async function POST(request: Request) {
   const rate = checkRateLimit(request, "sessions", 30, 600000);
   if (!rate.ok) return rateLimitResponse(rate.retryAfterSeconds);
+  if (!authorized(request)) return NextResponse.json({ error: "Admin authorization required." }, { status: 401 });
   try {
     if (!databaseConfigured()) return NextResponse.json({ error: "DATABASE_URL is not configured" }, { status: 503 });
     const body = SaveSchema.parse(await request.json());
