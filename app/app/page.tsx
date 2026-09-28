@@ -51,6 +51,8 @@ type RehabKey = "roof" | "hvac" | "kitchen" | "bathrooms" | "flooringPaint" | "e
 type PropertyWorkspace = {
   dealStrategy?: DealStrategy;
   dealInputs?: Record<string, number>;
+  proposedBidEntered?: boolean;
+  zeroLegalReserveAcknowledged?: boolean;
   subjectSqft?: number;
   manualComps?: ManualComp[];
   rehabItems?: Partial<Record<RehabKey, number>>;
@@ -192,6 +194,8 @@ export default function AppPage() {
   const [osModule, setOsModule] = useState<OsModule>("taxsale");
   const [dealStrategy, setDealStrategy] = useState<DealStrategy>("flip");
   const [dealInputs, setDealInputs] = useState({ purchasePrice: 0, arv: 0, rehab: 25000, monthlyRent: 0, downPaymentPct: 20, interestRate: 7.5, loanYears: 30, vacancyPct: 5, managementPct: 8, taxesMonthly: 0, insuranceMonthly: 0, otherMonthly: 0, buyClosingPct: 2, sellClosingPct: 8, holdingMonths: 6, monthlyHolding: 650, contingencyPct: 10, targetProfitPct: 15, refiLtvPct: 75, refiClosingPct: 3, titleLegal: 0, survivingLiens: 0, evictionPossession: 0, auctionFees: 0, redemptionCarry: 0 });
+  const [proposedBidEntered, setProposedBidEntered] = useState(false);
+  const [zeroLegalReserveAcknowledged, setZeroLegalReserveAcknowledged] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterMode>("all");
@@ -467,6 +471,8 @@ export default function AppPage() {
     }
 
     setDealStrategy(saved?.dealStrategy && ["flip","rental","brrrr"].includes(saved.dealStrategy) ? saved.dealStrategy : "flip");
+    setProposedBidEntered(saved?.proposedBidEntered === true);
+    setZeroLegalReserveAcknowledged(saved?.zeroLegalReserveAcknowledged === true);
     setDealInputs((v) => {
       const defaults = {
         ...v,
@@ -516,6 +522,8 @@ export default function AppPage() {
     const workspace: PropertyWorkspace = {
       dealStrategy,
       dealInputs,
+      proposedBidEntered,
+      zeroLegalReserveAcknowledged,
       subjectSqft,
       manualComps,
       rehabItems,
@@ -526,7 +534,7 @@ export default function AppPage() {
     } catch {
       // Browser storage can be unavailable or full; the active workspace still remains usable in memory.
     }
-  }, [selected?.parcel_id, workspaceLoadedParcel, dealStrategy, dealInputs, subjectSqft, manualComps, rehabItems]);
+  }, [selected?.parcel_id, workspaceLoadedParcel, dealStrategy, dealInputs, proposedBidEntered, zeroLegalReserveAcknowledged, subjectSqft, manualComps, rehabItems]);
 
   const compAnalysis = useMemo(() => {
     const valid = manualComps
@@ -595,6 +603,27 @@ export default function AppPage() {
     () => calculateDealAnalysis(dealInputs, dealStrategy),
     [dealInputs, dealStrategy],
   );
+
+  // These screening allowances are explicit heuristics, not verified liabilities or an appraisal.
+  const bidReadiness = useMemo(() => {
+    const compsReady = compAnalysis.confidence === "medium" && compAnalysis.suggestedArv > 0;
+    const conditionReady = (Object.keys(rehabItems) as RehabKey[]).some(key => key !== "permitsOther" && rehabItems[key] > 0);
+    const diligenceReady = Boolean(diligence?.checklist.length) && diligence!.checklist.every(item => checkedItems[item.id]);
+    const reserveReady = dealInputs.titleLegal > 0 || zeroLegalReserveAcknowledged;
+    const rentalReady = dealStrategy === "flip" || (dealInputs.monthlyRent > 0 && dealInputs.taxesMonthly > 0 && dealInputs.insuranceMonthly > 0);
+    const economicMaxBid = dealAnalysis.mao;
+    const deductions = {
+      comps: compsReady ? 0 : Math.round(dealInputs.arv * 0.05),
+      condition: conditionReady ? 0 : Math.round(dealInputs.arv * 0.10),
+      diligence: diligenceReady && reserveReady ? 0 : Math.round(dealInputs.arv * 0.05),
+    };
+    const riskAdjustedMaxBid = Math.max(0, economicMaxBid - Object.values(deductions).reduce((sum, amount) => sum + amount, 0));
+    const status = proposedBidEntered && dealInputs.purchasePrice > riskAdjustedMaxBid ? "Walk Away" :
+      proposedBidEntered && compsReady && conditionReady && diligenceReady && reserveReady && rentalReady ? "Bid Ready" :
+      proposedBidEntered || compsReady || conditionReady ? "Verify" : "Screening Candidate";
+    const showReturns = proposedBidEntered && compsReady && conditionReady && diligenceReady && reserveReady && rentalReady && dealInputs.purchasePrice <= riskAdjustedMaxBid;
+    return { compsReady, conditionReady, diligenceReady, reserveReady, economicMaxBid, deductions, riskAdjustedMaxBid, status, showReturns };
+  }, [compAnalysis, rehabItems, diligence, checkedItems, dealInputs, dealAnalysis, dealStrategy, proposedBidEntered, zeroLegalReserveAcknowledged]);
 
   const investorIntel = useMemo(() => {
     const props = data?.properties ?? [];
@@ -996,14 +1025,14 @@ export default function AppPage() {
       {osModule !== "taxsale" ? (
         <section className={styles.osWorkspace}>
           <div className={styles.osHero}>
-            <div><span className="pill pill-mint">FirstLook Real Estate OS</span><h1>{osModule === "property360" ? "Property 360" : osModule === "analyzer" ? "AI Deal Analyzer" : ({ comps:"Comps & ARV", rehab:"Rehab Estimator", financing:"Financing Lab", diligence:"Due Diligence", pipeline:"Deal Pipeline", portfolio:"Portfolio" } as Record<string,string>)[osModule]}</h1>
+            <div><span className="pill pill-mint">FirstLook Real Estate OS</span><h1>{osModule === "property360" ? "Property 360" : osModule === "analyzer" ? "Deal Analyzer" : ({ comps:"Comps & ARV", rehab:"Rehab Estimator", financing:"Financing Lab", diligence:"Due Diligence", pipeline:"Deal Pipeline", portfolio:"Portfolio" } as Record<string,string>)[osModule]}</h1>
             <p className="muted">{selected ? <><strong>{selected.cleanAddress}</strong> · APN {selected.parcel_id} · <span className={styles.contextTag}>Selected property</span>{workspaceLoadedParcel === selected.parcel_id ? <> · <span className={styles.contextTag}>Autosaved workspace</span></> : null}</> : "Select a property from Tax Sale to start a complete investment analysis."}</p></div>
             <button className="btn btn-ghost" onClick={() => setOsModule("taxsale")}>← Tax Sale workspace</button>
           </div>
           {selected && (osModule === "property360" || osModule === "analyzer") ? (
             <>
               {osModule === "property360" ? <>
-                <div className={styles.propertyBrief}><div><span className={styles.eyebrow}>Deal intelligence</span><h2>{investorIntel.missing.length ? "This deal is not decision-ready yet." : "Review source evidence before bidding."}</h2><p>{investorIntel.missing[0]?.why ?? "Workflow items are marked complete. Confirm supporting documents and current auction status."}</p></div><div className={styles.briefActions}><button className="btn btn-primary" onClick={()=>setOsModule(investorIntel.missing[0]?.module ?? "diligence")}>Resolve next issue →</button><button className="btn btn-ghost" onClick={()=>void askConcierge("Create a Property 360 deal brief using the Evidence Ledger. Separate facts, estimates, assumptions, unresolved evidence and next verification steps.")}>✦ AI deal brief</button></div></div>
+                <div className={styles.propertyBrief}><div><span className={styles.eyebrow}>Deal intelligence · {bidReadiness.status}</span><h2>{investorIntel.missing.length ? "This deal is not decision-ready yet." : "Review source evidence before bidding."}</h2><p>{investorIntel.missing[0]?.why ?? "Workflow items are marked complete. Confirm supporting documents and current auction status."}</p></div><div className={styles.briefActions}><button className="btn btn-primary" onClick={()=>setOsModule(investorIntel.missing[0]?.module ?? "diligence")}>Resolve next issue →</button><button className="btn btn-ghost" onClick={()=>void askConcierge("Create a Property 360 deal brief using the Evidence Ledger. Separate facts, estimates, assumptions, unresolved evidence and next verification steps.")}>✦ AI deal brief</button></div></div>
                 <div className={styles.evidenceLedger}>
                   <div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Evidence ledger</span><h3>What FirstLook knows — and what it does not.</h3></div><span className="pill">{evidenceLedger.openCount} unresolved</span></div>
                   <div className={styles.evidenceRows}>{evidenceLedger.entries.map((entry)=><div className={styles.evidenceRow} key={entry.label}><div><strong>{entry.label}</strong><small>{entry.detail}</small></div><span className={styles.evidenceValue}>{entry.value}</span><em className={entry.open ? styles.evidenceOpen : styles.evidenceKnown}>{entry.status}</em></div>)}</div>
@@ -1011,31 +1040,34 @@ export default function AppPage() {
                 </div>
               </> : null}
               <div className={styles.strategyTabs}>{(["flip","rental","brrrr"] as DealStrategy[]).map(s => <button key={s} className={dealStrategy === s ? styles.osNavActive : ""} onClick={() => setDealStrategy(s)}>{s.toUpperCase()}</button>)}</div>
+              <div className={styles.screeningNotice}><strong>{bidReadiness.status} · {proposedBidEntered ? "Proposed bid scenario" : "Opening-bid illustration"}</strong><span>{proposedBidEntered ? "User-entered bid; confirm auction and source documents before acting." : "Opening/cry-out bid is a starting price, not the expected winning bid. Enter your proposed bid to model a purchase."} Profit and returns are withheld from headline decision metrics until comps, an itemized condition budget, diligence checks, and a legal reserve or explicit zero-reserve acknowledgment are recorded. Checklist completion is user-reported.</span></div>
               <div className={styles.osMetrics}>
-                <div onContextMenu={(e)=>openAiContext(e,"Purchase price",money(dealInputs.purchasePrice))}><span>Purchase</span><strong>{money(dealInputs.purchasePrice)}</strong></div>
+                <div onContextMenu={(e)=>openAiContext(e,proposedBidEntered ? "Proposed bid" : "Opening bid",money(dealInputs.purchasePrice))}><span>{proposedBidEntered ? "Proposed bid" : "Opening bid"}</span><strong>{money(dealInputs.purchasePrice)}</strong></div>
                 <div onContextMenu={(e)=>openAiContext(e,"Working ARV",money(dealInputs.arv))}><span>Working ARV <em className={styles.evidenceEstimate}>Estimate</em></span><strong>{money(dealInputs.arv)}</strong></div>
                 <div onContextMenu={(e)=>openAiContext(e,"Rehab assumption",money(dealInputs.rehab))}><span>Rehab <em className={styles.evidenceAssumption}>Assumption</em></span><strong>{money(dealInputs.rehab)}</strong></div>
-                {dealStrategy === "flip" ? <><div onContextMenu={(e)=>openAiContext(e,"Flip profit",money(dealAnalysis.flipProfit))}><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></div><div><span>Investor MAO</span><strong>{money(dealAnalysis.mao)}</strong></div></> : <><div><span>Cash flow / mo</span><strong>{money(dealAnalysis.cashFlow)}</strong></div><div><span>{dealStrategy === "brrrr" ? "Annual return / initial cash" : "Cash-on-cash"}</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></div></>}
+                {dealStrategy === "flip" ? <><div onContextMenu={(e)=>openAiContext(e,"Illustrative flip profit",money(dealAnalysis.flipProfit))}><span>{bidReadiness.showReturns ? "Modeled profit" : "Profit · needs verification"}</span><strong>{bidReadiness.showReturns ? money(dealAnalysis.flipProfit) : "—"}</strong></div><div><span>Economic max bid</span><strong>{money(bidReadiness.economicMaxBid)}</strong></div></> : <><div><span>Cash flow / mo</span><strong>{bidReadiness.showReturns ? money(dealAnalysis.cashFlow) : "—"}</strong></div><div><span>{dealStrategy === "brrrr" ? "Annual return / initial cash" : "Cash-on-cash"}</span><strong>{bidReadiness.showReturns ? pct(dealAnalysis.cashOnCash) : "—"}</strong></div></>}
               </div>
               <div className={styles.analyzerGrid}>
                 <div className="panel">
                   <h2>Deal assumptions</h2><div className={styles.trustNotice}><strong>Evidence-aware analysis</strong><span>Green = public-record input · amber = model estimate · blue = your assumption. Verify comps, rent, taxes, insurance, condition and title before committing capital.</span></div>
                   <div className={styles.inputGrid}>
-                    {([["purchasePrice","Purchase price"],["arv","Working ARV"],["rehab","Base rehab"],["monthlyRent","Monthly rent"],["downPaymentPct","Down payment %"],["interestRate","Interest rate %"],["loanYears","Loan years"],["vacancyPct","Vacancy %"],["managementPct","Management %"],["taxesMonthly","Taxes / mo"],["insuranceMonthly","Insurance / mo"],["otherMonthly","Other / mo"],["buyClosingPct","Buy closing %"],["sellClosingPct","Sell/disposition %"],["holdingMonths","Holding months"],["monthlyHolding","Holding cost / mo"],["contingencyPct","Rehab contingency %"],["targetProfitPct","Target profit % of ARV"],["refiLtvPct","Refi LTV %"],["refiClosingPct","Refi closing %"]] as const).map(([key,label]) => <label key={key}><span>{label}{key === "arv" ? <em className={styles.evidenceEstimate}>Estimate</em> : key === "purchasePrice" ? <em className={styles.evidencePublic}>Public record</em> : <em className={styles.evidenceAssumption}>Assumption</em>}</span><input min="0" type="number" step="any" value={dealInputs[key]} onChange={(e)=>setDealInputs(v=>({...v,[key]:normalizeDealInput(key,Number(e.target.value))}))}/></label>)}
+                    {([["purchasePrice","Proposed bid / purchase price"],["arv","Working ARV"],["rehab","Base rehab"],["monthlyRent","Monthly rent"],["downPaymentPct","Down payment %"],["interestRate","Interest rate %"],["loanYears","Loan years"],["vacancyPct","Vacancy %"],["managementPct","Management %"],["taxesMonthly","Taxes / mo"],["insuranceMonthly","Insurance / mo"],["otherMonthly","Other / mo"],["buyClosingPct","Buy closing %"],["sellClosingPct","Sell/disposition %"],["holdingMonths","Holding months"],["monthlyHolding","Holding cost / mo"],["contingencyPct","Rehab contingency %"],["targetProfitPct","Target profit % of ARV"],["refiLtvPct","Refi LTV %"],["refiClosingPct","Refi closing %"]] as const).map(([key,label]) => <label key={key}><span>{label}{key === "arv" ? <em className={styles.evidenceEstimate}>Estimate</em> : key === "purchasePrice" ? <em className={styles.evidenceAssumption}>{proposedBidEntered ? "Your assumption" : "Opening bid loaded"}</em> : <em className={styles.evidenceAssumption}>Assumption</em>}</span><input min="0" type="number" step="any" value={dealInputs[key]} onChange={(e)=>{if(key === "purchasePrice") setProposedBidEntered(true);setDealInputs(v=>({...v,[key]:normalizeDealInput(key,Number(e.target.value))}));}}/></label>)}
                   </div>
                   <details className={styles.advancedBox}>
                     <summary>Tax-sale / legal risk reserves</summary>
-                    <p className="muted">Keep these at zero only when you intentionally have no reserve. They affect cash required, flip profit, cap rate basis and MAO.</p>
+                    <p className="muted">Reserves affect cash required, flip profit, cap rate basis and the economic ceiling. A zero legal/title reserve requires explicit acknowledgment.</p>
                     <div className={styles.inputGrid}>
                       {([["titleLegal","Title / legal reserve"],["survivingLiens","Potential surviving liens"],["evictionPossession","Possession / eviction"],["auctionFees","Auction / deed fees"],["redemptionCarry","Redemption carry"]] as const).map(([key,label])=><label key={key}><span>{label}<em className={styles.evidenceAssumption}>Assumption</em></span><input min="0" type="number" value={dealInputs[key]} onChange={(e)=>setDealInputs(v=>({...v,[key]:normalizeDealInput(key,Number(e.target.value))}))}/></label>)}
                     </div>
+                    {dealInputs.titleLegal === 0 ? <label className={styles.reserveAcknowledgment}><input type="checkbox" checked={zeroLegalReserveAcknowledged} onChange={e=>setZeroLegalReserveAcknowledged(e.target.checked)}/><span>I intentionally modeled $0 for title/legal risk. I will verify title, liens and auction terms separately.</span></label> : null}
                   </details>
                 </div>
                 <div className="panel">
                   <h2>{dealStrategy === "flip" ? "Flip outcome" : dealStrategy === "rental" ? "Rental outcome" : "BRRRR outcome"}</h2>
                   <div className={styles.outcomeList}>{dealAnalysis.warnings.length ? <div className={styles.analysisWarnings}>{dealAnalysis.warnings.map(w=><p key={w}>⚠ {w}</p>)}</div> : null}
-                    {dealStrategy === "flip" ? <><p><span>Projected profit</span><strong>{money(dealAnalysis.flipProfit)}</strong></p><p><span>Investor MAO</span><strong>{money(dealAnalysis.mao)}</strong></p><p><span>Total project cost</span><strong>{money(dealAnalysis.totalProjectCost)}</strong></p><p><span>Risk reserves</span><strong>{money(dealAnalysis.riskReserves)}</strong></p><p><span>Target profit ({dealInputs.targetProfitPct}%)</span><strong>{money(dealAnalysis.targetProfit)}</strong></p><p><span>Cash required</span><strong>{money(dealAnalysis.cashNeeded)}</strong></p><p><span>ROI on modeled cash</span><strong>{pct(dealAnalysis.flipRoi)}</strong></p></> : <><p><span>{dealStrategy === "brrrr" ? "Refinance mortgage" : "Mortgage"}</span><strong>{money(dealAnalysis.mortgage)}/mo</strong></p><p><span>Cash flow</span><strong>{money(dealAnalysis.cashFlow)}/mo</strong></p><p><span>NOI</span><strong>{money(dealAnalysis.annualNoi)}/yr</strong></p><p><span>All-in basis for cap rate</span><strong>{money(dealAnalysis.rentalBasis)}</strong></p><p><span>Cap rate</span><strong>{pct(dealAnalysis.capRate)}</strong></p><p><span>{dealStrategy === "brrrr" ? "Annual return / initial cash" : "Cash-on-cash"}</span><strong>{pct(dealAnalysis.cashOnCash)}</strong></p><p><span>DSCR</span><strong>{dealAnalysis.dscr > 0 ? dealAnalysis.dscr.toFixed(2) : "—"}</strong></p>{dealStrategy === "brrrr" ? <><p><span>Gross refinance ({dealInputs.refiLtvPct}% LTV)</span><strong>{money(dealAnalysis.refiGross)}</strong></p><p><span>Estimated loan payoff</span><strong>{money(dealAnalysis.remainingLoan)}</strong></p><p><span>Cash back after payoff</span><strong>{money(dealAnalysis.cashBackFromRefi)}</strong></p><p><span>Cash left in deal</span><strong>{money(dealAnalysis.cashLeftIn)}</strong></p></> : null}</>}
+                    {dealStrategy === "flip" ? <><p><span>{proposedBidEntered ? "Modeled profit at proposed bid" : "Illustrative profit at opening bid"}</span><strong>{money(dealAnalysis.flipProfit)}</strong></p><p><span>Economic max bid</span><strong>{money(bidReadiness.economicMaxBid)}</strong></p><p><span>Risk-adjusted screening ceiling</span><strong>{money(bidReadiness.riskAdjustedMaxBid)}</strong></p><p><span>Total project cost</span><strong>{money(dealAnalysis.totalProjectCost)}</strong></p><p><span>Modeled risk reserves</span><strong>{money(dealAnalysis.riskReserves)}</strong></p><p><span>Target profit ({dealInputs.targetProfitPct}%)</span><strong>{money(dealAnalysis.targetProfit)}</strong></p><p><span>Cash required</span><strong>{money(dealAnalysis.cashNeeded)}</strong></p><p><span>ROI on modeled cash</span><strong>{bidReadiness.showReturns ? pct(dealAnalysis.flipRoi) : "Withheld · verify evidence"}</strong></p></> : <><p><span>{dealStrategy === "brrrr" ? "Refinance mortgage" : "Mortgage"}</span><strong>{money(dealAnalysis.mortgage)}/mo</strong></p><p><span>Cash flow</span><strong>{money(dealAnalysis.cashFlow)}/mo</strong></p><p><span>NOI</span><strong>{money(dealAnalysis.annualNoi)}/yr</strong></p><p><span>All-in basis for cap rate</span><strong>{money(dealAnalysis.rentalBasis)}</strong></p><p><span>Cap rate</span><strong>{bidReadiness.showReturns ? pct(dealAnalysis.capRate) : "Withheld · verify evidence"}</strong></p><p><span>{dealStrategy === "brrrr" ? "Annual return / initial cash" : "Cash-on-cash"}</span><strong>{bidReadiness.showReturns ? pct(dealAnalysis.cashOnCash) : "Withheld · verify evidence"}</strong></p><p><span>DSCR</span><strong>{dealAnalysis.dscr > 0 ? dealAnalysis.dscr.toFixed(2) : "—"}</strong></p>{dealStrategy === "brrrr" ? <><p><span>Gross refinance ({dealInputs.refiLtvPct}% LTV)</span><strong>{money(dealAnalysis.refiGross)}</strong></p><p><span>Estimated loan payoff</span><strong>{money(dealAnalysis.remainingLoan)}</strong></p><p><span>Cash back after payoff</span><strong>{money(dealAnalysis.cashBackFromRefi)}</strong></p><p><span>Cash left in deal</span><strong>{money(dealAnalysis.cashLeftIn)}</strong></p></> : null}</>}
                   </div>
+                  {dealStrategy === "flip" ? <div className={styles.screeningNotice}><strong>How the screening ceiling changes</strong><span>Economic max bid {money(bidReadiness.economicMaxBid)} minus {money(bidReadiness.deductions.comps)} for unverified comps (5% ARV), {money(bidReadiness.deductions.condition)} for an unitemized condition budget (10% ARV), and {money(bidReadiness.deductions.diligence)} for incomplete diligence or unacknowledged $0 title/legal reserve (5% ARV). Floor $0. These provisional allowances are screening heuristics, not verified costs or permission to bid.</span></div> : null}
                   <div className={styles.stressPanel}>
                     <div><span className={styles.eyebrow}>Downside stress</span><strong>{dealStrategy === "flip" ? "ARV −10% · rehab +20%" : "Rent −10% · rate +2 pts"}</strong></div>
                     {dealStrategy === "flip" ? (
@@ -1374,7 +1406,7 @@ export default function AppPage() {
                 <div className={styles.bidPreview}>
                   <span className="muted">Live preview · {selected.cleanAddress}</span>
                   <strong className="mono">{money(liveBidPreview.maxBid)}</strong>
-                  <span className="muted">Profit at ceiling ≈ {money(liveBidPreview.projectedProfit)}</span>
+                  <span className="muted">Illustrative profit at economic ceiling ≈ {money(liveBidPreview.projectedProfit)} · verify evidence before bidding</span>
                   <span className="muted">Risk reserves included ≈ {money(bidDefaults.titleLegal + bidDefaults.survivingLiens + bidDefaults.evictionPossession + bidDefaults.auctionFees + bidDefaults.redemptionCarry)}</span>
                 </div>
               ) : null}
@@ -1710,11 +1742,11 @@ export default function AppPage() {
 
               <div className={styles.bidBox}>
                 <div onContextMenu={(e) => openAiContext(e, "Max bid", money(selected.maxBid))} title="Right-click to ask AI">
-                  <span className="muted">Max bid</span>
+                  <span className="muted">Economic max bid · screening</span>
                   <strong className="mono">{money(selected.maxBid)}</strong>
                 </div>
-                <div onContextMenu={(e) => openAiContext(e, "Projected profit", money(selected.projectedProfitAtMaxBid))} title="Right-click to ask AI">
-                  <span className="muted">Projected profit</span>
+                <div onContextMenu={(e) => openAiContext(e, "Illustrative profit at economic ceiling", money(selected.projectedProfitAtMaxBid))} title="Right-click to ask AI">
+                  <span className="muted">Illustrative profit at ceiling</span>
                   <strong className="mono">{money(selected.projectedProfitAtMaxBid)}</strong>
                 </div>
                 <div onContextMenu={(e) => openAiContext(e, "Cry-out bid", money(selected.cry_out_bid))} title="Right-click to ask AI">
