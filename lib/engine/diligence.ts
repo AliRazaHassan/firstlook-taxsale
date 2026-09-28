@@ -138,6 +138,6 @@ export function overbidRisk(property: ScoredProperty): {
   }
   return {
     level: "ok",
-    message: `Headroom to max bid ≈ $${Math.round(headroom).toLocaleString()}. Lock it and walk at the ceiling.`,
+    message: `Headroom to economic ceiling ≈ $${Math.round(headroom).toLocaleString()}. Verify comps, condition, title and auction terms; use the Deal Analyzer screening ceiling before deciding on a bid.`,
   };
 }

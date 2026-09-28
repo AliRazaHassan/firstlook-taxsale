@@ -606,7 +606,7 @@ export default function AppPage() {
 
   // These screening allowances are explicit heuristics, not verified liabilities or an appraisal.
   const bidReadiness = useMemo(() => {
-    const compsReady = compAnalysis.confidence === "medium" && compAnalysis.suggestedArv > 0;
+    const compsReady = compAnalysis.confidence === "medium" && compAnalysis.suggestedArv > 0 && dealInputs.arv === compAnalysis.suggestedArv;
     const conditionReady = (Object.keys(rehabItems) as RehabKey[]).some(key => key !== "permitsOther" && rehabItems[key] > 0);
     const diligenceReady = Boolean(diligence?.checklist.length) && diligence!.checklist.every(item => checkedItems[item.id]);
     const reserveReady = dealInputs.titleLegal > 0 || zeroLegalReserveAcknowledged;
@@ -1224,14 +1224,14 @@ export default function AppPage() {
                 </div>
                 <div className={styles.commandGrid}>
                   <section className="panel"><div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Selected deal</span><h3>{selected?.cleanAddress}</h3></div><strong className={styles.readiness}>{investorIntel.missing.length} open actions</strong></div>
-                    <div className={styles.dealPulse}><div><span>Deal Truth</span><strong>{selected?.dealTruth?.overall ?? "—"}</strong></div><div><span>Max bid</span><strong>{money(selected?.maxBid)}</strong></div><div><span>Working ARV</span><strong>{money(dealInputs.arv)}</strong></div><div><span>Red flags</span><strong>{selected?.redFlags.length ?? 0}</strong></div></div>
+                    <div className={styles.dealPulse}><div><span>Deal Truth</span><strong>{selected?.dealTruth?.overall ?? "—"}</strong></div><div><span>Economic ceiling</span><strong>{money(selected?.maxBid)}</strong></div><div><span>Working ARV</span><strong>{money(dealInputs.arv)}</strong></div><div><span>Red flags</span><strong>{selected?.redFlags.length ?? 0}</strong></div></div>
                     <div className={styles.commandActions}><button className="btn btn-primary" onClick={()=>setOsModule("property360")}>Open Property 360</button><button className="btn btn-ghost" onClick={()=>setOsModule("analyzer")}>Run scenarios</button><button className="btn btn-ghost" onClick={()=>setOsModule("diligence")}>Verify deal</button></div>
                   </section>
                   <section className="panel"><div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Action center</span><h3>What needs attention</h3></div><span className="pill">{investorIntel.missing.length} open</span></div>
                     <div className={styles.actionList}>{investorIntel.missing.slice(0,5).map(item=><button key={item.label} onClick={()=>setOsModule(item.module)}><span><strong>{item.label}</strong><small>{item.why}</small></span><b>→</b></button>)}</div>
                   </section>
                   <section className={"panel "+styles.spanTwo}><div className={styles.sectionTitle}><div><span className={styles.eyebrow}>Opportunity queue</span><h3>Deals to review first</h3></div><button className="btn btn-ghost" onClick={()=>setOsModule("taxsale")}>View all</button></div>
-                    <div className={styles.dealQueue}>{investorIntel.look.slice(0,5).map(p=><button key={p.parcel_id} onClick={()=>{setSelected(p);setOsModule("property360")}}><span className={styles.queueRank}>#{p.rank}</span><span className={styles.queueAddress}><strong>{p.cleanAddress}</strong><small>{p.propertyType} · {p.redFlags.length} flags</small></span><span><small>Truth</small><strong>{p.dealTruth?.overall ?? "—"}</strong></span><span><small>Max bid</small><strong>{money(p.maxBid)}</strong></span><b>→</b></button>)}</div>
+                    <div className={styles.dealQueue}>{investorIntel.look.slice(0,5).map(p=><button key={p.parcel_id} onClick={()=>{setSelected(p);setOsModule("property360")}}><span className={styles.queueRank}>#{p.rank}</span><span className={styles.queueAddress}><strong>{p.cleanAddress}</strong><small>{p.propertyType} · {p.redFlags.length} flags</small></span><span><small>Truth</small><strong>{p.dealTruth?.overall ?? "—"}</strong></span><span><small>Economic ceiling</small><strong>{money(p.maxBid)}</strong></span><b>→</b></button>)}</div>
                   </section>
                 </div>
               </div>}
@@ -1521,7 +1521,7 @@ export default function AppPage() {
                       ["look", `Look first (${filterCounts.look})`],
                       ["flagged", `Flags (${filterCounts.flagged})`],
                       ["clean", `No auto flags (${filterCounts.clean})`],
-                      ["headroom", `Bid OK (${filterCounts.headroom})`],
+                      ["headroom", `Economic headroom (${filterCounts.headroom})`],
                       ["overbid", `Walk (${filterCounts.overbid})`],
                     ] as const
                   ).map(([key, label]) => (
@@ -1580,7 +1580,7 @@ export default function AppPage() {
                       <th>Address</th>
                       <th>Cry-out</th>
                       <th>FMV</th>
-                      <th>Max bid</th>
+                      <th>Economic ceiling</th>
                       <th>Flags</th>
                     </tr>
                   </thead>
