@@ -584,6 +584,10 @@
 .outcomeList>p{padding:.78rem .15rem;margin:0}
 .analysisWarnings{margin:0 0 .55rem;padding:.7rem .8rem;box-sizing:border-box}
 .analysisWarnings p{margin:0!important}
+.screeningNotice{display:grid;gap:.3rem;padding:.8rem .95rem;margin:.55rem 0 .9rem;border:1px solid #c89e53;border-left:5px solid #aa6b21;border-radius:7px;background:#fff7e8;color:#4e371b;line-height:1.45;font-size:.82rem}
+.screeningNotice strong{font-size:.9rem}
+.reserveAcknowledgment{display:flex;align-items:flex-start;gap:.5rem;margin:.9rem 0 .2rem;font-size:.82rem;line-height:1.4;color:#553b21}
+.reserveAcknowledgment input{flex:none;margin-top:.2rem}
 .analyzerGrid .btn{max-width:100%;white-space:normal;text-align:center}
 @media(max-width:1100px){
   .analyzerGrid{grid-template-columns:minmax(0,1fr)}
